@@ -1,0 +1,4 @@
+aiohttp
+attrs
+slack_sdk
+pyyaml == 5.4.1

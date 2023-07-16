@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "charliermarsh.ruff",
+        "matangover.mypy",
+        "ms-python.black-formatter",
+        "ms-python.isort"
+    ]
+}
+
