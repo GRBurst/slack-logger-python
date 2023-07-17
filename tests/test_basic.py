@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from logger import Configuration, SlackFormatter, SlackHandler
+from slack_logger import Configuration, SlackFormatter, SlackHandler
 
 logger = logging.getLogger("LocalTest")
 config = Configuration(service="testrunner", environment="test", fields={"foo": "bar"})
@@ -68,6 +68,7 @@ def auto_exception_logging() -> int:
         1 / 0
     except Exception as e:
         logger.exception("Exception!")
+        raise e
 
     return 0
 
