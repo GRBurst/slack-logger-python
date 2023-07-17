@@ -1,0 +1,85 @@
+name: "Python Black Formatter"
+
+on:
+  pull_request:
+    types: [ opened ]
+  issue_comment:
+    types: [ created ]
+
+jobs:
+  format:
+    name: "Format"
+    runs-on: ubuntu-22.04
+    if: github.event.issue.pull_request
+    steps:
+      - name: Generate github token
+        id: generate-token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92 # pin@v1
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_PRIVATE_KEY }}
+
+      - uses: khan/pull-request-comment-trigger@edab8d9ba7759221187ef7120592a6fbfada0d18 # pin@v1.1.0
+        id: check
+        with:
+          trigger: '/format'
+          reaction: "+1" # Reaction must be one of the reactions here: https://developer.github.com/v3/reactions/#reaction-types
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # pin@v3
+        if: steps.check.outputs.triggered == 'true'
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Check out PR
+        if: steps.check.outputs.triggered == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          gh pr checkout ${{ github.event.issue.number }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        if: steps.check.outputs.triggered == 'true'
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install
+        if: steps.check.outputs.triggered == 'true'
+        run: pip install black isort
+
+      - name: Format using black
+        uses: psf/black@stable
+        if: steps.check.outputs.triggered == 'true'
+        with:
+          options: "--verbose"
+
+      - name: Sort imports using isort
+        if: steps.check.outputs.triggered == 'true'
+        run: isort --verbose .
+
+      - name: Commit changes
+        if: steps.check.outputs.triggered == 'true'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+
+          git status
+          git diff --stat
+          git commit -am "chore: format code"
+
+          git log --oneline --max-count=10
+
+          git push
+
+      - uses: khan/pull-request-comment-trigger@edab8d9ba7759221187ef7120592a6fbfada0d18 # pin@v1.1.0
+        if: failure()
+        with:
+          trigger: '/format'
+          reaction: "confused" # Reaction must be one of the reactions here: https://developer.github.com/v3/reactions/#reaction-types
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
