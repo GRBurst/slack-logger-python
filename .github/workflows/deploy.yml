@@ -1,4 +1,4 @@
-name: "Check Slack Logger"
+name: "Check & Deploy Slack Logger"
 
 on:
   push:
@@ -23,6 +23,7 @@ jobs:
     name: "Checks"
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: ${{ github.ref_type == 'tag' && 'prod' || 'dev' }}
     steps:
 
       - name: Log Arguments
@@ -64,3 +65,33 @@ jobs:
         run: |
           set -o pipefail
           mypy ${{env.MODULE_NAME}}
+
+  deploy:
+    name: "Deploy"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref_type == 'tag'
+    environment: 'prod'
+    needs:
+      - check
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: pip | Install Dependencies
+        run: pip install build
+
+      - name: Build
+        run: python -m build
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
