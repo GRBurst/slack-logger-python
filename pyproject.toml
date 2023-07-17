@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slack-logger-python"
-version = "0.0.1"
 description = "Slack logger utilizing python logging interface."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +28,12 @@ classifiers = [
     "Topic :: System :: Logging",
 ]
 
+dynamic = ["dependencies", "version"]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+dependencies = {file = ["requirements.txt"]}
+
 [[project.authors]]
 name = "GRBurst"
 email = "GRBurst@protonmail.com"
@@ -36,10 +41,6 @@ email = "GRBurst@protonmail.com"
 [project.urls]
 "Homepage" = "https://github.com/GRBurst/slack-python-logging"
 "Bug Tracker" = "https://github.com/GRBurst/slack-python-logging/issues"
-
-[tool.setuptools.packages.find]
-where = ["slack_logger"]
-
 
 [tool.black]
 multi-line-output = 3
