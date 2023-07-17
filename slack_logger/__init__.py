@@ -41,7 +41,7 @@ class MessageDesign(ABC):
     def format(self, record: LogRecord) -> str:
         maybe_blocks: Sequence[Optional[Block]] = self.format_blocks(record=record)
         print(f"Maybe blocks: {maybe_blocks}")
-        blocks: Sequence[Block] = list(filter(lambda b: b is not None, maybe_blocks))
+        blocks: Sequence[Block] = [b for b in maybe_blocks if b is not None]
         print(f"blocks: {blocks}")
         str_blocks: str = json.dumps(list(map(lambda block: block.to_dict(), blocks)))
         print(f"str_blocks: {str_blocks}")
