@@ -27,9 +27,8 @@ DEFAULT_EMOJIS = {
 class Configuration:
     service: Optional[str] = None
     environment: Optional[str] = None
-    colors: Optional[Dict[str, str]] = None  # TODO: level -> color
     emojis: Dict[int, str] = DEFAULT_EMOJIS
-    fields: Dict[str, str] = {}
+    extra_fields: Dict[str, str] = {}
 
 
 @define
@@ -94,7 +93,7 @@ class RichDesign(MessageDesign):
                 MarkdownTextObject(text=f"*Environment*\n{self.config.environment}"),
                 MarkdownTextObject(text=f"*Service*\n{self.config.service}"),
             ]
-            + [MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in self.config.fields.items()]
+            + [MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in self.config.extra_fields.items()]
         )
 
         maybe_blocks: Sequence[Optional[Block]] = [
