@@ -1,3 +1,47 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slack-python-logging"
+version = "0.0.1"
+description = "Slack logger utilizing python logging interface."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = [
+    "slack", "python",
+    "logging", "logger", "log", "python-logging",
+    "Handler", "Formatter", "logging.Handler", "logging.Formatter",
+    "monitoring", "alerting",
+    "slack-api", "webhook",
+    "messaging", "health-check", "notification-service", "notification",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Communications :: Chat",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: System :: Logging",
+]
+license-files = [ "LICENSE" ]
+
+[[project.authors]]
+name = "GRBurst"
+email = "GRBurst@protonmail.com"
+
+[project.urls]
+"Homepage" = "https://github.com/GRBurst/slack-python-logging"
+"Bug Tracker" = "https://github.com/GRBurst/slack-python-logging"
+
+[tool.setuptools.packages.find]
+where = ["slack_logger"]
+
+
 [tool.black]
 multi-line-output = 3
 line-length = 120
