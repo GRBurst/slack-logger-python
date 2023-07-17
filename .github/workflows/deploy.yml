@@ -1,0 +1,66 @@
+name: "Check Slack Logger"
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ v* ]
+  pull_request:
+    types: [ opened, synchronize ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  REPOSITORY: ${{ github.repository }} # <owner/repo>
+  MODULE_NAME: slack_logger
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.event.pull_request.head.sha || github.sha  }}
+
+jobs:
+  check:
+    name: "Checks"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+
+      - name: Log Arguments
+        run: |
+          echo "::notice title=REGISTRY::${{ env.REGISTRY }}"
+          echo "::notice title=REPOSITORY::${{ env.REPOSITORY }}"
+          echo "::notice title=MODULE_NAME::${{ env.MODULE_NAME }}"
+          echo "::notice title=VERSION::${{ env.VERSION }}"
+          echo "::notice title=REF|BRANCH::${{ github.ref_name }}"
+
+      - name: Checkout Source Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: pip | Install Dependencies
+        run: pip install -r requirements_dev.txt -r requirements.txt
+
+      # The official isort action does not provide any output in the success case
+      - name: isort | Import Order Check
+        run: isort --check-only --diff --verbose .
+
+      - name: black | Format Check
+        uses: psf/black@stable
+        with:
+          options: "--check --diff --verbose"
+
+      - name: ruff | Lint Check
+        id: lint
+        run: ruff check ${{env.MODULE_NAME}}
+
+      - name: mypy | Type Check
+        run: |
+          set -o pipefail
+          mypy ${{env.MODULE_NAME}}
