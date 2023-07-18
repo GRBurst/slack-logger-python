@@ -1,6 +1,6 @@
 let
   pkgs = import <nixpkgs> { };
-  pname = "slack-python-logging";
+  pname = "slack-logger-python";
   vsextensions = (with pkgs.vscode-extensions; [
     ms-azuretools.vscode-docker
     ms-python.python
@@ -30,30 +30,27 @@ let
           sha256 = "sha256-ev+gSQP+Q1AEw+r1Uahi1TI+docalcC1iWO29N1L5VE=";
     }
   ]; 
-  vscode-nocode-plugins-ape = pkgs.vscode-with-extensions.override {
+  vscode-slack-logger = pkgs.vscode-with-extensions.override {
     vscodeExtensions = vsextensions;
   };
+  python-pkgs = ps: with ps; [
+    pip
+    virtualenv
+  ];
+  plugin-python = pkgs.python310.withPackages python-pkgs;
+
 in
-pkgs.mkShell rec {
+
+pkgs.mkShell {
+  packages = [ plugin-python ];
   buildInputs = with pkgs; [
     git
-    awscli2
-    aws-vault
 
+    black
+    isort
     ruff
     mypy
-    black
 
-    pgcli postgresql
-
-    python310
-    python310Packages.pip
-    python310Packages.virtualenv
-    python310Packages.numpy
-    python310Packages.pandas
-
-    vscode-nocode-plugins-ape
-
+    vscode-slack-logger
   ];
-
 }
