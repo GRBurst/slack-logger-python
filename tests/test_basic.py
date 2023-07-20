@@ -1,86 +1,157 @@
+import json
 import logging
 import os
 
 import pytest
 
-from slack_logger import Configuration, SlackFormatter, SlackHandler
+from slack_logger import Configuration, FilterType, SlackFilter, SlackFormatter, SlackHandler
 
 logger = logging.getLogger("LocalTest")
-config = Configuration(service="testrunner", environment="test", fields={"foo": "bar"})
 
-log_format_str = "%(asctime)s %(name)s|%(levelname)s: %(message)s"
-log_formatter = logging.Formatter(log_format_str)
+# Log to console as well
 stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(log_formatter)
+stream_handler.setFormatter(logging.Formatter("%(asctime)s %(name)s|%(levelname)s: %(message)s"))
+logger.addHandler(stream_handler)
+
+# Setup test handler
+slack_handler = SlackHandler.dummy()
+slack_handler.setLevel(logging.WARN)
+logger.addHandler(slack_handler)
 
 
-def basic_logging() -> int:
-    # formatter = SlackFormatter.plain()
-    # formatter = SlackFormatter.minimal(config)
-    formatter = SlackFormatter.default(config)
-    handler = SlackHandler.from_webhook(os.environ["SLACK_WEBHOOK"])
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.WARN)
+def basic_text_filter(caplog, log_msg: str) -> None:  # type: ignore
+    # Whitelist
+    ## We allow logs from test environment
+    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyWhitelist)
+    slack_handler.addFilter(slackFilter10)
 
-    stream_handler.setLevel(logging.WARN)
+    ### Log from test environment
+    logger.warning(f"{log_msg} in test and whitelisted test", extra={"filter": {"environment": "test"}})
 
-    logger.addHandler(stream_handler)
-    logger.addHandler(handler)
+    ### Log from dev environment
+    logger.warning(f"{log_msg} in dev and whitelisted test", extra={"filter": {"environment": "dev"}})
 
-    print("logging")
-    logger.info("Foo bar haha")
-    logger.warning("oO warning")
-    logger.error("something broke")
+    # Cleanup
+    slack_handler.removeFilter(slackFilter10)
+    assert len(slack_handler.filters) == 0
 
-    return 0
+    ## We allow logs in test environment with extra_field {"cow": "moo"}
+    slackFilter11 = SlackFilter(
+        config=Configuration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllWhitelist
+    )
+    slack_handler.addFilter(slackFilter11)
+
+    ### Log from test environment
+    logger.warning(f"{log_msg} in test, whitelisted test, no cow", extra={"filter": {"environment": "test"}})
+    logger.warning(
+        f"{log_msg} in test, whitelisted test, english cow",
+        extra={"filter": {"environment": "test", "extra_fields": {"cow": "moo"}}},
+    )
+    logger.warning(
+        f"{log_msg} in dev, whitelisted test, english cow",
+        extra={"filter": {"environment": "dev", "extra_fields": {"cow": "moo"}}},
+    )
+    logger.warning(
+        f"{log_msg} in test, whitelisted test, german cow",
+        extra={"filter": {"environment": "test", "extra_fields": {"cow": "muh"}}},
+    )
+
+    # Cleanup
+    slack_handler.removeFilter(slackFilter11)
+    assert len(slack_handler.filters) == 0
+
+    # Blacklist
+    ## We blacklist logs from "test" environment
+    slackFilter20 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyBlacklist)
+    slack_handler.addFilter(slackFilter20)
+
+    ## Log from test environment
+    logger.warning(f"{log_msg} in test and blacklisted test", extra={"filter": {"environment": "test"}})
+
+    ## Log from dev environment
+    logger.warning(f"{log_msg} in dev and blacklisted test", extra={"filter": {"environment": "dev"}})
+
+    # Cleanup
+    slack_handler.removeFilter(slackFilter20)
+    assert len(slack_handler.filters) == 0
 
 
-def exception_logging() -> None:
-    formatter = SlackFormatter.default(config)
-    handler = SlackHandler.from_webhook(os.environ["SLACK_WEBHOOK"])
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.WARN)
+def basic_blocks_filter(caplog, log_msg: str) -> None:  # type: ignore
+    service_config = Configuration(
+        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
+    )
+    formatter = SlackFormatter.default(service_config)
+    slack_handler.setFormatter(formatter)
+    # Whitelist
+    ## We allow logs from test environment
+    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyWhitelist)
+    slack_handler.addFilter(slackFilter10)
 
-    stream_handler.setLevel(logging.WARN)
+    ### Log from test environment
+    logger.warning(f"{log_msg} in test and whitelisted test")
 
-    logger.addHandler(stream_handler)
-    logger.addHandler(handler)
+    ### Log from dev environment
+    service_config = Configuration(service="testrunner", environment="dev", extra_fields={"foo": "bar", "raven": "caw"})
+    formatter = SlackFormatter.default(service_config)
+    slack_handler.setFormatter(formatter)
+    logger.warning(f"{log_msg} in dev and whitelisted test")
 
-    try:
-        1 / 0
-    except Exception as e:
-        logger.error("Error!", exc_info=e)
-        raise e
+    # Cleanup
+    slack_handler.removeFilter(slackFilter10)
+    assert len(slack_handler.filters) == 0
 
 
-def auto_exception_logging() -> int:
-    formatter = SlackFormatter.default(config)
-    handler = SlackHandler.from_webhook(os.environ["SLACK_WEBHOOK"])
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.WARN)
+def default_msg(log_msg: str) -> str:
+    return json.dumps(
+        {
+            "blocks": [
+                {"text": {"text": ":warning: WARNING | testrunner", "type": "plain_text"}, "type": "header"},
+                {"type": "divider"},
+                {
+                    "text": {"text": log_msg, "type": "mrkdwn"},
+                    "type": "section",
+                },
+                {"type": "divider"},
+                {
+                    "fields": [
+                        {"text": "*Environment*\ntest", "type": "mrkdwn"},
+                        {"text": "*Service*\ntestrunner", "type": "mrkdwn"},
+                        {"text": "*foo*\nbar", "type": "mrkdwn"},
+                        {"text": "*raven*\ncaw", "type": "mrkdwn"},
+                    ],
+                    "type": "section",
+                },
+            ]
+        }
+    )
 
-    stream_handler.setLevel(logging.WARN)
 
-    logger.addHandler(stream_handler)
-    logger.addHandler(handler)
-
-    try:
-        1 / 0
-    except Exception as e:
-        logger.exception("Exception!")
-        raise e
-
-    return 0
+def plain_msg(log_msg: str) -> str:
+    return json.dumps({"text": log_msg})
 
 
 class TestBasicLogging:
-    def test_basic_logging(self) -> None:
-        assert basic_logging() == 0
+    # ignore types of tests because of fixtures
+    def test_filters(self, caplog) -> None:  # type: ignore
+        caplog.at_level(logging.WARN)
 
-    def test_exception_logging(self) -> None:
-        with pytest.raises(Exception) as exc_info:
-            exception_logging()
+        log_msg = "warning from basic_text_filter"
+        basic_text_filter(caplog, log_msg)
+        assert plain_msg(f"{log_msg} in test and whitelisted test") in caplog.messages
+        assert plain_msg(f"{log_msg} in dev and whitelisted test") not in caplog.messages
+        assert plain_msg(f"{log_msg} in test and blacklisted test") not in caplog.messages
+        assert plain_msg(f"{log_msg} in dev and blacklisted test") in caplog.messages
 
-    def test_auto_exception_logging(self) -> None:
-        with pytest.raises(Exception) as exc_info:
-            auto_exception_logging()
+        assert plain_msg(f"{log_msg} in test, whitelisted test, no cow") not in caplog.messages
+        assert plain_msg(f"{log_msg} in test, whitelisted test, english cow") in caplog.messages
+        assert plain_msg(f"{log_msg} in dev, whitelisted test, english cow") not in caplog.messages
+        assert plain_msg(f"{log_msg} in test, whitelisted test, german cow") not in caplog.messages
+
+        caplog.clear()
+
+        log_msg = "warning from basic_blocks_filter"
+        basic_blocks_filter(caplog, log_msg)
+        assert default_msg(log_msg=f"{log_msg} in test and whitelisted test") in caplog.messages
+        assert default_msg(log_msg=f"{log_msg} in dev and whitelisted test") not in caplog.messages
+
+        caplog.clear()
