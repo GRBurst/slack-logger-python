@@ -124,10 +124,8 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -s"
+addopts = "-ra --capture=tee-sys"
 log_cli = true
-log_level = "NOTSET"
-capture = false
 testpaths = [
     "tests",
 ]
