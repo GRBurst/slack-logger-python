@@ -132,8 +132,8 @@ class SlackFormatter(logging.Formatter):
         self.config = config
 
     @classmethod
-    def plain(cls) -> "SlackFormatter":
-        return cls(design=NoDesign())
+    def plain(cls, config: Optional[Configuration] = None) -> "SlackFormatter":
+        return cls(design=NoDesign(), config=config)
 
     @classmethod
     def minimal(cls, config: Configuration) -> "SlackFormatter":
@@ -206,7 +206,8 @@ class SlackFilter(logging.Filter):
         if log_filters is None:
             return True
 
-        log.debug("EXTRA FIELDS: ", log_filters.get("extra_fields", {}))
+        extra_fields = log_filters.get("extra_fields", {})
+        log.debug(f"EXTRA FIELDS: {extra_fields}")
         rconfig: Configuration = Configuration(
             service=log_filters.get("service", None),
             environment=log_filters.get("environment", None),
