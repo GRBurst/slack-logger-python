@@ -59,12 +59,12 @@ jobs:
 
       - name: ruff | Lint Check
         id: lint
-        run: ruff check ${{env.MODULE_NAME}}
+        run: ruff check ${{env.MODULE_NAME}} tests
 
       - name: mypy | Type Check
         run: |
           set -o pipefail
-          mypy ${{env.MODULE_NAME}}
+          mypy ${{env.MODULE_NAME}} tests
 
   deploy:
     name: "Deploy"
