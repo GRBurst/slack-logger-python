@@ -90,6 +90,9 @@ class RichDesign(MessageDesign):
         message = record.getMessage()
         icon = self.config.emojis.get(record.levelno)
 
+        dynamic_extra_fields = getattr(record, "extra_fields", {})
+        all_extra_fields = {**self.config.extra_fields, **dynamic_extra_fields}
+
         header: HeaderBlock
         if icon is not None:
             header = HeaderBlock(text=PlainTextObject(text=f"{icon} {level} | {self.config.service}"))
@@ -107,7 +110,7 @@ class RichDesign(MessageDesign):
                 MarkdownTextObject(text=f"*Environment*\n{self.config.environment}"),
                 MarkdownTextObject(text=f"*Service*\n{self.config.service}"),
             ]
-            + [MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in self.config.extra_fields.items()]
+            + [MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in all_extra_fields.items()]
         )
 
         maybe_blocks: Sequence[Optional[Block]] = [
