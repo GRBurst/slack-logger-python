@@ -7,7 +7,8 @@ on:
     types: [ closed ]
 
 permissions:
-  contents: write
+  id-token: write
+  contents: read
 
 jobs:
   tagging:
@@ -19,8 +20,15 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Generate github token
+        id: generate-token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92 # pin@v1
+        with:
+          app_id: ${{ secrets.GH_APP_ID }}
+          private_key: ${{ secrets.GH_PRIVATE_KEY }}
+
       - name: Bump version and push tag
         uses: mathieudutour/github-tag-action@fcfbdceb3093f6d85a3b194740f8c6cec632f4e2 # pin@v6.1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.generate-token.outputs.token }}
           release_branches: 'main'
