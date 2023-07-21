@@ -30,6 +30,9 @@ classifiers = [
 
 dynamic = ["dependencies", "version"]
 
+[tool.setuptools.package-data]
+slack_logger = ["py.typed"]
+
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
 dependencies = {file = ["requirements.txt"]}
