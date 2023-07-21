@@ -8,6 +8,7 @@ on:
     types: [ opened, synchronize ]
   workflow_dispatch:
 
+
 permissions:
   id-token: write
   contents: read
@@ -40,7 +41,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@3542bca2639a428e1796aaa6a2ffef0c0f575566 # pin@v3
         with:
           python-version: "3.10"
           cache: "pip"
@@ -53,7 +54,7 @@ jobs:
         run: isort --check-only --diff --verbose .
 
       - name: black | Format Check
-        uses: psf/black@stable
+        uses: psf/black@193ee766ca496871f93621d6b58d57a6564ff81b # pin@stable
         with:
           options: "--check --diff --verbose"
 
@@ -82,7 +83,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@3542bca2639a428e1796aaa6a2ffef0c0f575566 # pin@v3
         with:
           python-version: "3.10"
           cache: "pip"
@@ -94,4 +95,4 @@ jobs:
         run: python -m build
 
       - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@f8c70e705ffc13c3b4d1221169b84f12a75d6ca8 # pin@release/v1
