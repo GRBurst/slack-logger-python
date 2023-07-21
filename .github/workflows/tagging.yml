@@ -1,0 +1,27 @@
+name: "Version Tagging"
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Everyday at midnight
+  pull_request:
+    types: [ closed ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  tagging:
+    name: "Version Tag"
+    if: github.event.action != 'closed' || (github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'bump-version-after-merge'))
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@fcfbdceb3093f6d85a3b194740f8c6cec632f4e2 # pin@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: 'main'
