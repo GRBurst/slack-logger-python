@@ -28,7 +28,21 @@ jobs:
           private_key: ${{ secrets.GH_PRIVATE_KEY }}
 
       - name: Bump version and push tag
+        id: tagging
         uses: mathieudutour/github-tag-action@fcfbdceb3093f6d85a3b194740f8c6cec632f4e2 # pin@v6.1
         with:
           github_token: ${{ steps.generate-token.outputs.token }}
           release_branches: 'main'
+          default_bump: false
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # pin@v1
+        if: ${{ steps.tagging.outputs.new_version }} != 'undefined'
+        with:
+          tag: ${{ steps.tagging.outputs.new_tag }}
+          name: Release ${{ steps.tagging.outputs.new_tag }}
+          body: ${{ steps.tagging.outputs.changelog }}
+
+      - name: Update version file
+        if: ${{ steps.tagging.outputs.new_version }} != 'undefined'
+        run: echo "${{ steps.tagging.outputs.new_version }}" > VERSION
