@@ -67,6 +67,10 @@ jobs:
           set -o pipefail
           mypy ${{env.MODULE_NAME}} tests
 
+      - name: pytest | Run Tests
+        run: |
+          pytest
+
   deploy:
     name: "Deploy"
     runs-on: ubuntu-latest
