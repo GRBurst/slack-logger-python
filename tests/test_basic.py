@@ -271,7 +271,7 @@ class TestBasicLogging:
         fields_a.update({"cow": {"text": "*cow*\nmoo", "type": "mrkdwn"}})
         assert (
             default_msg(f"additional {log_msg}", levelno=logging.WARNING, additional_fields_dict=fields_a)
-            not in caplog.messages
+            in caplog.messages
         )
 
         fields_o: Dict[str, Dict[str, str]] = DEFAULT_ADDITIONAL_FIELDS.copy()
