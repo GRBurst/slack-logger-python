@@ -37,12 +37,12 @@ jobs:
 
       - name: Create a GitHub release
         uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # pin@v1
-        if: ${{ steps.tagging.outputs.new_version }} != 'undefined'
+        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
         with:
           tag: ${{ steps.tagging.outputs.new_tag }}
           name: Release ${{ steps.tagging.outputs.new_tag }}
           body: ${{ steps.tagging.outputs.changelog }}
 
       - name: Update version file
-        if: ${{ steps.tagging.outputs.new_version }} != 'undefined'
+        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
         run: echo "${{ steps.tagging.outputs.new_version }}" > VERSION
