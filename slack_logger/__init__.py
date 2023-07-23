@@ -150,10 +150,6 @@ class SlackFormatter(logging.Formatter):
         return self.design.format(record)
 
 
-# show = True:  log the values in the configuration
-# show = False: hide the values in the configuration
-# Injection filter
-# https://docs.python.org/3/howto/logging-cookbook.html#using-filters-to-impart-contextual-information
 class FilterType(Enum):
     AnyWhitelist = "AnyWhitelist"
     AllWhitelist = "AllWhitelist"
@@ -219,9 +215,6 @@ class SlackFilter(logging.Filter):
         return self.filterConfig(serviceConfig=rconfig, record=record)
 
 
-# class ConfigFilter(SlackFilter):
-
-
 @define
 class DummyClient(AsyncWebhookClient):
     url: str = ""
@@ -252,7 +245,7 @@ class DummyClient(AsyncWebhookClient):
             t = json.dumps({"text": str(text)})
 
         log.info(t)
-        return WebhookResponse(url="", status_code=200, body=t, headers={})
+        return WebhookResponse(url="", status_code=200, body="ok", headers={})
 
 
 class SlackHandler(logging.Handler):
@@ -274,17 +267,16 @@ class SlackHandler(logging.Handler):
 
     async def send_text_via_webhook(self, text: str) -> str:
         log.debug(text)
-        response = await self.client.send(text=text)  # type: ignore
+        response = await self.client.send(text=text)
         assert response.status_code == 200
-        # assert response.body == "ok"
+        assert response.body == "ok"
         return str(response.body)
 
     async def send_blocks_via_webhook(self, blocks: str) -> str:
-        # parsed_blocks = json.loads(blocks)
         block_seq = Block.parse_all(json.loads(blocks))
         response = await self.client.send(blocks=block_seq)
         assert response.status_code == 200
-        # assert response.body == "ok"
+        assert response.body == "ok"
         return str(response.body)
 
     def emit(self, record: LogRecord) -> None:
@@ -298,9 +290,6 @@ class SlackHandler(logging.Handler):
                 log.debug(f"formatted_message: {formatted_message}")
                 asyncio.run(self.send_text_via_webhook(text=formatted_message))
 
-            # log.debug(f"format: {format}")
-            # asyncio.run(self.send_message_via_webhook(message=formatted_message))
-            # asyncio.run(self.send_blocks_via_webhook(blocks=formatted_message))
         except Exception:
             self.handleError(record)
 
