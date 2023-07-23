@@ -81,13 +81,16 @@ class MessageDesign(ABC):
         if config.context != []:
             context_msg = ", ".join(config.context)
             return ContextBlock(elements=[MarkdownTextObject(text=context_msg)])
-        elif env is not None and service is not None:
-            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}, {service}")])
-        elif env is None:
-            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}")])
-        elif service is None:
-            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {service}")])
-        return None
+        if env is None and service is None:
+            return None
+
+        context: List[str] = []
+        if env is not None:
+            context.append(env)
+        if service is not None:
+            context.append(service)
+
+        return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {','.join(context)}")])
 
     def format(self, record: LogRecord) -> str:
         maybe_blocks: Sequence[Optional[Block]] = self.format_blocks(record=record)
