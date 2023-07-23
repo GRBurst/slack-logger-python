@@ -70,14 +70,13 @@ jobs:
         run: |
           pytest
 
-      - name: Gather Badge Data
-        if: github.ref_name == 'main' && github.event_name == 'push'
+      - name: coverage | Test Coverage
         run: |
           coverage run -m pytest -s
           coverage report -m
 
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
-        if: always() && github.ref_name == 'main' && github.event_name == 'push'
+        if: github.ref_name == 'main' && github.event_name == 'push'
         with:
           ref: assets
           path: assets
