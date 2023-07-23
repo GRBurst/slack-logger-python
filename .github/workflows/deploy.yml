@@ -76,12 +76,9 @@ jobs:
           coverage run -m pytest -s
           coverage report -m
 
-      - name: Checkout badges
-        if: github.ref_name == 'main' && github.event_name == 'push'
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
-        with:
-          ref: badges
-          path: badges
+      - name: Create Badge Directory
+        if: always() && github.ref_name == 'main' && github.event_name == 'push'
+        run: mkdir -p badges
 
       - name: Create Coverage Badge
         if: github.ref_name == 'main' && github.event_name == 'push'
@@ -89,23 +86,22 @@ jobs:
         with:
           output: badges/coverage.svg
 
-      - name: Commit badge
+      - name: Commit Badge
         if: github.ref_name == 'main' && github.event_name == 'push'
         run: |
-          cd badges
           if [[ -n "$(git status --porcelain)" ]]; then
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
-            git add .
+            git add badges/coverage.svg
             git commit -m "Update coverage badge"
           fi
 
-      - name: Push badge commit
+      - name: Push Badge
         if: github.ref_name == 'main' && github.event_name == 'push'
         uses: ad-m/github-push-action@d9117be7cad08757e9e906a1bcd1716d6b192db5 # pin@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: badges
+          branch: assets
 
   deploy:
     name: "Deploy"
