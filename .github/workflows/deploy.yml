@@ -71,10 +71,10 @@ jobs:
         run: |
           pytest
 
-      - name: Gather Badge data
+      - name: Gather Badge Data
         if: github.ref_name == 'main' && github.event_name == 'push'
         run: |
-          coverage run -m pytest
+          coverage run -m pytest -s
           coverage report -m
 
       - name: Checkout badges
@@ -84,7 +84,7 @@ jobs:
           ref: badges
           path: badges
 
-      - name: Coverage Badge
+      - name: Create Coverage Badge
         if: github.ref_name == 'main' && github.event_name == 'push'
         uses: tj-actions/coverage-badge-py@782bdaaa8b2e37612e6b6fac5e559e5544e6eef2 # pin@v2
         with:
@@ -97,8 +97,8 @@ jobs:
           if [[ -n "$(git status --porcelain)" ]]; then
             git config --local user.email "action@github.com"
             git config --local user.name "GitHub Action"
-            git add "${{ matrix.module }}/*"
-            git commit -m "Update ${{ matrix.module }} badge"
+            git add .
+            git commit -m "Update coverage badge"
           fi
 
       - name: Push badge commit
