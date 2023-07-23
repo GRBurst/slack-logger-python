@@ -132,3 +132,8 @@ log_cli = true
 testpaths = [
     "tests",
 ]
+
+[tool.coverage.run]
+source = [
+    "slack_logger"
+]

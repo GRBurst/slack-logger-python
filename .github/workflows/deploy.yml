@@ -71,6 +71,43 @@ jobs:
         run: |
           pytest
 
+      - name: Gather Badge data
+        if: github.ref_name == 'main' && github.event_name == 'push'
+        run: |
+          coverage run -m pytest
+          coverage report -m
+
+      - name: Checkout badges
+        if: github.ref_name == 'main' && github.event_name == 'push'
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
+        with:
+          ref: badges
+          path: badges
+
+      - name: Coverage Badge
+        if: github.ref_name == 'main' && github.event_name == 'push'
+        uses: tj-actions/coverage-badge-py@782bdaaa8b2e37612e6b6fac5e559e5544e6eef2 # pin@v2
+        with:
+          output: badges/coverage.svg
+
+      - name: Commit badge
+        if: github.ref_name == 'main' && github.event_name == 'push'
+        run: |
+          cd badges
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add "${{ matrix.module }}/*"
+            git commit -m "Update ${{ matrix.module }} badge"
+          fi
+
+      - name: Push badge commit
+        if: github.ref_name == 'main' && github.event_name == 'push'
+        uses: ad-m/github-push-action@d9117be7cad08757e9e906a1bcd1716d6b192db5 # pin@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: badges
+
   deploy:
     name: "Deploy"
     runs-on: ubuntu-latest
