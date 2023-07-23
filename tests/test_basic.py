@@ -8,11 +8,6 @@ from slack_logger import DEFAULT_EMOJIS, Configuration, FilterType, SlackFilter,
 
 logger = logging.getLogger("LocalTest")
 
-# Log to console as well
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(logging.Formatter("%(asctime)s %(name)s|%(levelname)s: %(message)s"))
-logger.addHandler(stream_handler)
-
 # Setup test handler
 slack_handler = SlackHandler.dummy()
 slack_handler.setLevel(logging.WARN)
@@ -169,8 +164,6 @@ def basic_blocks_filter(log_msg: str) -> None:  # type: ignore
 
 
 DEFAULT_ADDITIONAL_FIELDS: Dict[str, Dict[str, str]] = {
-    "env": {"text": "*Environment*\ntest", "type": "mrkdwn"},
-    "service": {"text": "*Service*\ntestrunner", "type": "mrkdwn"},
     "foo": {"text": "*foo*\nbar", "type": "mrkdwn"},
     "raven": {"text": "*raven*\ncaw", "type": "mrkdwn"},
 }
@@ -186,6 +179,7 @@ def default_msg(
         {
             "blocks": [
                 {"text": {"text": f"{emoji} {level_name} | testrunner", "type": "plain_text"}, "type": "header"},
+                {"elements": [{"text": ":point_right: test, testrunner", "type": "mrkdwn"}], "type": "context"},
                 {"type": "divider"},
                 {
                     "text": {"text": log_msg, "type": "mrkdwn"},
@@ -289,7 +283,7 @@ class TestBasicLogging:
         with pytest.raises(ZeroDivisionError):
             exception_logging(log_msg)
 
-        blocks_prefix = '{"blocks": [{"text": {"text": ":x: ERROR | testrunner", "type": "plain_text"}, "type": "header"}, {"type": "divider"}, {"text": {"text": "Error!", "type": "mrkdwn"}, "type": "section"}, {"text": {"text": "```Traceback (most recent call last):'
+        blocks_prefix = '{"blocks": [{"text": {"text": ":x: ERROR | testrunner", "type": "plain_text"}, "type": "header"}, {"elements": [{"text": ":point_right: test, testrunner", "type": "mrkdwn"}], "type": "context"}, {"type": "divider"}, {"text": {"text": "Error!", "type": "mrkdwn"}, "type": "section"}, {"text": {"text": "```Traceback (most recent call last):'
 
         assert any(map(lambda m: blocks_prefix in m, caplog.messages))
 
@@ -301,7 +295,7 @@ class TestBasicLogging:
         with pytest.raises(Exception):
             auto_exception_logging(log_msg)
 
-        blocks_prefix = '{"blocks": [{"text": {"text": ":x: ERROR | testrunner", "type": "plain_text"}, "type": "header"}, {"type": "divider"}, {"text": {"text": "Exception!", "type": "mrkdwn"}, "type": "section"}, {"text": {"text": "```Traceback (most recent call last):'
+        blocks_prefix = '{"blocks": [{"text": {"text": ":x: ERROR | testrunner", "type": "plain_text"}, "type": "header"}, {"elements": [{"text": ":point_right: test, testrunner", "type": "mrkdwn"}], "type": "context"}, {"type": "divider"}, {"text": {"text": "Exception!", "type": "mrkdwn"}, "type": "section"}, {"text": {"text": "```Traceback (most recent call last):'
 
         assert any(map(lambda m: blocks_prefix in m, caplog.messages))
 

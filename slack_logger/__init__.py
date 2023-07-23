@@ -4,11 +4,11 @@ import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from logging import LogRecord
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from attrs import define
 from slack_sdk.models.attachments import Attachment
-from slack_sdk.models.blocks import Block, DividerBlock, HeaderBlock, SectionBlock
+from slack_sdk.models.blocks import Block, ContextBlock, DividerBlock, HeaderBlock, SectionBlock
 from slack_sdk.models.blocks.basic_components import MarkdownTextObject, PlainTextObject
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 from slack_sdk.webhook.webhook_response import WebhookResponse
@@ -33,6 +33,7 @@ DEFAULT_EMOJIS = {
 class Configuration:
     service: Optional[str] = None
     environment: Optional[str] = None
+    context: List[str] = []
     emojis: Dict[int, str] = DEFAULT_EMOJIS
     extra_fields: Dict[str, str] = {}
 
@@ -42,6 +43,51 @@ class MessageDesign(ABC):
     @abstractmethod
     def format_blocks(self, record: LogRecord) -> Sequence[Optional[Block]]:
         pass
+
+    def get_env(self, config: Configuration, record: LogRecord) -> Optional[str]:
+        dynamic_env: Optional[str] = getattr(record, "environment", None)
+        if dynamic_env is not None:
+            return dynamic_env
+        if config.environment is not None:
+            return config.environment
+        return None
+
+    def get_service(self, config: Configuration, record: LogRecord) -> Optional[str]:
+        dynamic_service: Optional[str] = getattr(record, "service", None)
+        if dynamic_service is not None:
+            return dynamic_service
+        if config.service is not None:
+            return config.service
+        return None
+
+    def construct_header(
+        self, record: LogRecord, config: Configuration, icon: Optional[str], level: str
+    ) -> HeaderBlock:
+        service: Optional[str] = self.get_service(config=config, record=record)
+        header_msg: str
+        if icon is not None:
+            header_msg = f"{icon} "
+        header_msg += level
+        if config.service is not None:
+            header_msg += f" | {service}"
+        else:
+            header_msg += f" | {record.name}"
+
+        return HeaderBlock(text=PlainTextObject(text=header_msg))
+
+    def construct_context(
+        self, config: Configuration, env: Optional[str], service: Optional[str]
+    ) -> Optional[ContextBlock]:
+        if config.context != []:
+            context_msg = ", ".join(config.context)
+            return ContextBlock(elements=[MarkdownTextObject(text=context_msg)])
+        elif env is not None and service is not None:
+            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}, {service}")])
+        elif env is None:
+            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}")])
+        elif service is None:
+            return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {service}")])
+        return None
 
     def format(self, record: LogRecord) -> str:
         maybe_blocks: Sequence[Optional[Block]] = self.format_blocks(record=record)
@@ -66,11 +112,7 @@ class MinimalDesign(MessageDesign):
         message = record.getMessage()
         icon = self.config.emojis.get(record.levelno)
 
-        header: HeaderBlock
-        if icon is not None:
-            header = HeaderBlock(text=PlainTextObject(text=f"{icon} {level} | {self.config.service}"))
-        else:
-            header = HeaderBlock(text=PlainTextObject(text=f"{level} | {self.config.service}"))
+        header: HeaderBlock = self.construct_header(record=record, config=self.config, icon=icon, level=level)
 
         body = SectionBlock(text=MarkdownTextObject(text=message))
         default_blocks: Sequence[Block] = [
@@ -90,31 +132,28 @@ class RichDesign(MessageDesign):
         message = record.getMessage()
         icon = self.config.emojis.get(record.levelno)
 
-        dynamic_extra_fields = getattr(record, "extra_fields", {})
-        all_extra_fields = {**self.config.extra_fields, **dynamic_extra_fields}
+        env: Optional[str] = self.get_env(config=self.config, record=record)
+        service: Optional[str] = self.get_service(config=self.config, record=record)
 
-        header: HeaderBlock
-        if icon is not None:
-            header = HeaderBlock(text=PlainTextObject(text=f"{icon} {level} | {self.config.service}"))
-        else:
-            header = HeaderBlock(text=PlainTextObject(text=f"{level} | {self.config.service}"))
-
+        header: HeaderBlock = self.construct_header(record=record, config=self.config, icon=icon, level=level)
+        context: Optional[ContextBlock] = self.construct_context(config=self.config, env=env, service=service)
         body = SectionBlock(text=MarkdownTextObject(text=message))
 
         error: Optional[SectionBlock] = None
         if record.exc_info is not None:
             error = SectionBlock(text=MarkdownTextObject(text=f"```{record.exc_text}```"))
 
-        fields = SectionBlock(
-            fields=[
-                MarkdownTextObject(text=f"*Environment*\n{self.config.environment}"),
-                MarkdownTextObject(text=f"*Service*\n{self.config.service}"),
-            ]
-            + [MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in all_extra_fields.items()]
-        )
+        dynamic_extra_fields = getattr(record, "extra_fields", {})
+        all_extra_fields = {**self.config.extra_fields, **dynamic_extra_fields}
+        fields: Optional[SectionBlock] = None
+        if all_extra_fields != {}:
+            fields = SectionBlock(
+                fields=[MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in all_extra_fields.items()]
+            )
 
         maybe_blocks: Sequence[Optional[Block]] = [
             header,
+            context,
             DividerBlock(),
             body,
             error,
@@ -147,6 +186,7 @@ class SlackFormatter(logging.Formatter):
         return cls(design=RichDesign(config), config=config)
 
     def format(self, record: LogRecord) -> str:
+        super().format(record)
         return self.design.format(record)
 
 
@@ -266,7 +306,6 @@ class SlackHandler(logging.Handler):
         return cls(client=DummyClient())
 
     async def send_text_via_webhook(self, text: str) -> str:
-        log.debug(text)
         response = await self.client.send(text=text)
         assert response.status_code == 200
         assert response.body == "ok"
@@ -281,13 +320,10 @@ class SlackHandler(logging.Handler):
 
     def emit(self, record: LogRecord) -> None:
         try:
+            formatted_message = self.format(record)
             if isinstance(self.formatter, SlackFormatter):
-                formatted_message = self.format(record)
-                log.debug(f"formatted_message: {formatted_message}")
                 asyncio.run(self.send_blocks_via_webhook(blocks=formatted_message))
             else:
-                formatted_message = self.format(record)
-                log.debug(f"formatted_message: {formatted_message}")
                 asyncio.run(self.send_text_via_webhook(text=formatted_message))
 
         except Exception:
