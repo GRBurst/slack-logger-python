@@ -42,6 +42,7 @@ jobs:
           tag: ${{ steps.tagging.outputs.new_tag }}
           name: Release ${{ steps.tagging.outputs.new_tag }}
           body: ${{ steps.tagging.outputs.changelog }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Update version file
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
