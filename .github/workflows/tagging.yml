@@ -40,19 +40,6 @@ jobs:
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
         run: echo "${{ steps.tagging.outputs.new_version }}" > VERSION
 
-      - name: Commit Version
-        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
-        env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-        run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add VERSION
-            git commit -m "Update Version to ${{ steps.tagging.outputs.new_version }}"
-            git push
-          fi
-
       - name: Create a GitHub release
         uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # pin@v1
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
