@@ -16,16 +16,17 @@ jobs:
     if: github.event.action != 'closed' || (github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'bump-version-after-merge'))
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
       - name: Generate github token
         id: generate-token
         uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92 # pin@v1
         with:
           app_id: ${{ secrets.GH_APP_ID }}
           private_key: ${{ secrets.GH_PRIVATE_KEY }}
+
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # pin@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Bump version and push tag
         id: tagging
@@ -35,21 +36,14 @@ jobs:
           release_branches: 'main'
           default_bump: ${{ github.event_name == 'workflow_dispatch' && 'patch' || false}}
 
-      - name: Create a GitHub release
-        uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # pin@v1
-        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
-        with:
-          tag: ${{ steps.tagging.outputs.new_tag }}
-          name: Release ${{ steps.tagging.outputs.new_tag }}
-          body: ${{ steps.tagging.outputs.changelog }}
-          token: ${{ steps.generate-token.outputs.token }}
-
       - name: Update version file
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
         run: echo "${{ steps.tagging.outputs.new_version }}" > VERSION
 
       - name: Commit Version
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           if [[ -n "$(git status --porcelain)" ]]; then
             git config --local user.email "action@github.com"
@@ -58,4 +52,13 @@ jobs:
             git commit -m "Update Version to ${{ steps.tagging.outputs.new_version }}"
             git push
           fi
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@a2e71bdd4e7dab70ca26a852f29600c98b33153e # pin@v1
+        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
+        with:
+          tag: ${{ steps.tagging.outputs.new_tag }}
+          name: Release ${{ steps.tagging.outputs.new_tag }}
+          body: ${{ steps.tagging.outputs.changelog }}
+          token: ${{ steps.generate-token.outputs.token }}
 
