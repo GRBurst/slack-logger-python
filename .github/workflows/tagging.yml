@@ -47,3 +47,15 @@ jobs:
       - name: Update version file
         if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
         run: echo "${{ steps.tagging.outputs.new_version }}" > VERSION
+
+      - name: Commit Version
+        if: steps.tagging.outputs.new_version && steps.tagging.outputs.new_version != 'undefined'
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add VERSION
+            git commit -m "Update Version to ${{ steps.tagging.outputs.new_version }}"
+            git push
+          fi
+
