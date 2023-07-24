@@ -130,12 +130,12 @@ jobs:
       - name: pip | Install Dependencies
         run: pip install build
 
-      - name: Build
-        run: python -m build
-
       - name: Get Version
         run: |
           echo "${VERSION:1}" > VERSION
+
+      - name: Build
+        run: python -m build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@f8c70e705ffc13c3b4d1221169b84f12a75d6ca8 # pin@release/v1
