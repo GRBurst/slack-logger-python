@@ -135,8 +135,7 @@ jobs:
 
       - name: Get Version
         run: |
-          version="$(git describe --tags --abbrev=0)"
-          echo "${version:1}" > VERSION
+          echo "${VERSION:1}" > VERSION
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@f8c70e705ffc13c3b4d1221169b84f12a75d6ca8 # pin@release/v1
