@@ -208,20 +208,20 @@ import logging
 
 logger = logging.getLogger("ProdFilter")
 # Allow only logs from `prod` environment
-filter = SlackFilter(config=Configuration(environment="prod"), filterType=FilterType.AnyWhitelist)
+filter = SlackFilter(config=Configuration(environment="prod"), filterType=FilterType.AnyAllowList)
 slack_handler.addFilter(filter)
 logger.addHandler(slack_handler)
 
 
 # When the ENV enviroment variable is set to prod, the message will be send.
 # Otherwise, the message is filtered out and not send (e.g. if ENV is `dev`)
-logger.warning(f"{log_msg} in some environment and whitelisted prod", extra={"filter": {"environment": os.getenv("ENV", "dev")}})
+logger.warning(f"{log_msg} in some environment and allow listed prod", extra={"filter": {"environment": os.getenv("ENV", "dev")}})
 
 # Will be filtered
-logger.warning(f"{log_msg} in dev environment and whitelisted prod", extra={"filter": {"environment": "dev"}})
+logger.warning(f"{log_msg} in dev environment and allow listed prod", extra={"filter": {"environment": "dev"}})
 
 # Will be send
-logger.warning(f"{log_msg} in dev environment and whitelisted prod", extra={"filter": {"environment": "prod"}})
+logger.warning(f"{log_msg} in dev environment and allow listed prod", extra={"filter": {"environment": "prod"}})
 ```
 
 The composition of configurations, filters and dynamic extra fields allow for a flexible way of specifying your message content and filter unwanted messages.
