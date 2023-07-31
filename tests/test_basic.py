@@ -4,7 +4,7 @@ from typing import Dict, List
 
 import pytest
 
-from slack_logger import DEFAULT_EMOJIS, Configuration, FilterType, SlackFilter, SlackFormatter, SlackHandler
+from slack_logger import DEFAULT_EMOJIS, Configuration, FilterType, MessageDesign, SlackFilter, SlackFormatter, SlackHandler
 
 logger = logging.getLogger("LocalTest")
 
@@ -12,6 +12,11 @@ logger = logging.getLogger("LocalTest")
 slack_handler = SlackHandler.dummy()
 slack_handler.setLevel(logging.WARN)
 logger.addHandler(slack_handler)
+
+def unimpl_design() -> None:
+    class UnimplDesign(MessageDesign):
+        pass
+    d = UnimplDesign() # type: ignore
 
 
 # Check if only correct level is logged
@@ -230,6 +235,10 @@ def text_msg(log_msg: str) -> str:
 
 # ignore types of tests because of caplog fixtures
 class TestBasicLogging:
+    def test_basics(self) -> None:
+        with pytest.raises(TypeError):
+            unimpl_design()
+
     def test_basic_logging(self, caplog) -> None:  # type: ignore
         slack_handler.setFormatter(None)
         caplog.clear()
