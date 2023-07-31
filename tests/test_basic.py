@@ -127,7 +127,7 @@ def basic_text_filter(log_msg: str) -> None:  # type: ignore
     slack_handler.removeFilter(slackFilter11)
     assert len(slack_handler.filters) == 0
 
-    # DenyList
+    # AnyDenyList
     ## We deny list logs from "test" environment
     slackFilter20 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyDenyList)
     slack_handler.addFilter(slackFilter20)
@@ -140,6 +140,21 @@ def basic_text_filter(log_msg: str) -> None:  # type: ignore
 
     # Cleanup
     slack_handler.removeFilter(slackFilter20)
+    assert len(slack_handler.filters) == 0
+
+    # AllDenyList
+    ## We deny list logs from "test" environment
+    slackFilter30 = SlackFilter(config=Configuration(service="testrunner", extra_fields={"foo": "bar"}), filterType=FilterType.AllDenyList)
+    slack_handler.addFilter(slackFilter30)
+
+    ## Log with matching config
+    logger.warning(f"{log_msg} with match all deny listed", extra={"filter": {"service": "testrunner", "extra_fields": {"foo": "bar"}}})
+
+    ## Log with differnet foo
+    logger.warning(f"{log_msg} without match all deny listed", extra={"filter": {"service": "testrunner", "extra_fields": {"foo": "muh"}}})
+
+    # Cleanup
+    slack_handler.removeFilter(slackFilter30)
     assert len(slack_handler.filters) == 0
 
 
@@ -242,7 +257,7 @@ class TestBasicLogging:
     def test_basic_logging(self, caplog) -> None:  # type: ignore
         slack_handler.setFormatter(None)
         caplog.clear()
-        log_msg = "from basic_text_filter"
+        log_msg = "from basic_text_logging"
 
         basic_logging(log_msg)
 
@@ -323,6 +338,9 @@ class TestBasicLogging:
         assert text_msg(f"{log_msg} in test, allow listed test, english cow") in caplog.messages
         assert text_msg(f"{log_msg} in dev, allow listed test, english cow") not in caplog.messages
         assert text_msg(f"{log_msg} in test, allow listed test, german cow") not in caplog.messages
+
+        assert text_msg(f"{log_msg} with match all deny listed test") not in caplog.messages
+        assert text_msg(f"{log_msg} without match all deny listed test") in caplog.messages
 
         slack_handler.setFormatter(None)
         caplog.clear()
