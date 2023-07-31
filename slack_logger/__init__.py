@@ -191,29 +191,29 @@ class SlackFormatter(logging.Formatter):
 
 
 class FilterType(Enum):
-    AnyWhitelist = "AnyWhitelist"
-    AllWhitelist = "AllWhitelist"
-    AnyBlacklist = "AnyBlacklist"
-    AllBlacklist = "AllBlacklist"
+    AnyAllowList = "AnyAllowList"
+    AllAllowList = "AllAllowList"
+    AnyDenyList = "AnyDenyList"
+    AllDenyList = "AllDenyList"
 
 
 class SlackFilter(logging.Filter):
     config: Configuration
     tpe: FilterType
 
-    def __init__(self, config: Configuration, filterType: FilterType = FilterType.AnyWhitelist):
+    def __init__(self, config: Configuration, filterType: FilterType = FilterType.AnyAllowList):
         super(SlackFilter, self).__init__()
         self.config = config
         self.tpe = filterType
 
     @classmethod
     def filter_by_fields(
-        cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyWhitelist
+        cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyAllowList
     ) -> "SlackFilter":
         return cls(Configuration(extra_fields=fields), filterType=filterType)
 
     @classmethod
-    def hide_by_fields(cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyBlacklist) -> "SlackFilter":
+    def hide_by_fields(cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
         return cls(Configuration(extra_fields=fields), filterType=filterType)
 
     def filterConfig(self, serviceConfig: Configuration, record: LogRecord) -> bool:
@@ -228,13 +228,13 @@ class SlackFilter(logging.Filter):
 
         res: bool
         match self.tpe:
-            case FilterType.AnyWhitelist:
+            case FilterType.AnyAllowList:
                 res = any(res_list)
-            case FilterType.AllWhitelist:
+            case FilterType.AllAllowList:
                 res = all(res_list)
-            case FilterType.AnyBlacklist:
+            case FilterType.AnyDenyList:
                 res = not all(res_list)
-            case FilterType.AllBlacklist:
+            case FilterType.AllDenyList:
                 res = not any(res_list)
 
         log.debug(f"final result ({self.tpe}): res({res}) = {res_list}")

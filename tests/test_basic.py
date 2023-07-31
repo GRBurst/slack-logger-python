@@ -82,16 +82,16 @@ def auto_exception_logging(log_msg: str) -> None:
 
 
 def basic_text_filter(log_msg: str) -> None:  # type: ignore
-    # Whitelist
+    # AllowList
     ## We allow logs from test environment
-    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyWhitelist)
+    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyAllowList)
     slack_handler.addFilter(slackFilter10)
 
     ### Log from test environment
-    logger.warning(f"{log_msg} in test and whitelisted test", extra={"filter": {"environment": "test"}})
+    logger.warning(f"{log_msg} in test and allow listed test", extra={"filter": {"environment": "test"}})
 
     ### Log from dev environment
-    logger.warning(f"{log_msg} in dev and whitelisted test", extra={"filter": {"environment": "dev"}})
+    logger.warning(f"{log_msg} in dev and allow listed test", extra={"filter": {"environment": "dev"}})
 
     # Cleanup
     slack_handler.removeFilter(slackFilter10)
@@ -99,22 +99,22 @@ def basic_text_filter(log_msg: str) -> None:  # type: ignore
 
     ## We allow logs in test environment with extra_field {"cow": "moo"}
     slackFilter11 = SlackFilter(
-        config=Configuration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllWhitelist
+        config=Configuration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllAllowList
     )
     slack_handler.addFilter(slackFilter11)
 
     ### Log from test environment
-    logger.warning(f"{log_msg} in test, whitelisted test, no cow", extra={"filter": {"environment": "test"}})
+    logger.warning(f"{log_msg} in test, allow listed test, no cow", extra={"filter": {"environment": "test"}})
     logger.warning(
-        f"{log_msg} in test, whitelisted test, english cow",
+        f"{log_msg} in test, allow listed test, english cow",
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in dev, whitelisted test, english cow",
+        f"{log_msg} in dev, allow listed test, english cow",
         extra={"filter": {"environment": "dev", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in test, whitelisted test, german cow",
+        f"{log_msg} in test, allow listed test, german cow",
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "muh"}}},
     )
 
@@ -122,16 +122,16 @@ def basic_text_filter(log_msg: str) -> None:  # type: ignore
     slack_handler.removeFilter(slackFilter11)
     assert len(slack_handler.filters) == 0
 
-    # Blacklist
-    ## We blacklist logs from "test" environment
-    slackFilter20 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyBlacklist)
+    # DenyList
+    ## We deny list logs from "test" environment
+    slackFilter20 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyDenyList)
     slack_handler.addFilter(slackFilter20)
 
     ## Log from test environment
-    logger.warning(f"{log_msg} in test and blacklisted test", extra={"filter": {"environment": "test"}})
+    logger.warning(f"{log_msg} in test and deny listed test", extra={"filter": {"environment": "test"}})
 
     ## Log from dev environment
-    logger.warning(f"{log_msg} in dev and blacklisted test", extra={"filter": {"environment": "dev"}})
+    logger.warning(f"{log_msg} in dev and deny listed test", extra={"filter": {"environment": "dev"}})
 
     # Cleanup
     slack_handler.removeFilter(slackFilter20)
@@ -144,19 +144,19 @@ def basic_blocks_filter(log_msg: str) -> None:  # type: ignore
     )
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
-    # Whitelist
+    # AllowList
     ## We allow logs from test environment
-    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyWhitelist)
+    slackFilter10 = SlackFilter(config=Configuration(environment="test"), filterType=FilterType.AnyAllowList)
     slack_handler.addFilter(slackFilter10)
 
     ### Log from test environment
-    logger.warning(f"{log_msg} in test and whitelisted test")
+    logger.warning(f"{log_msg} in test and allow listed test")
 
     ### Log from dev environment
     service_config = Configuration(service="testrunner", environment="dev", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
-    logger.warning(f"{log_msg} in dev and whitelisted test")
+    logger.warning(f"{log_msg} in dev and allow listed test")
 
     # Cleanup
     slack_handler.removeFilter(slackFilter10)
@@ -305,15 +305,15 @@ class TestBasicLogging:
 
         log_msg = "warning from basic_text_filter"
         basic_text_filter(log_msg)
-        assert text_msg(f"{log_msg} in test and whitelisted test") in caplog.messages
-        assert text_msg(f"{log_msg} in dev and whitelisted test") not in caplog.messages
-        assert text_msg(f"{log_msg} in test and blacklisted test") not in caplog.messages
-        assert text_msg(f"{log_msg} in dev and blacklisted test") in caplog.messages
+        assert text_msg(f"{log_msg} in test and allow listed test") in caplog.messages
+        assert text_msg(f"{log_msg} in dev and allow listed test") not in caplog.messages
+        assert text_msg(f"{log_msg} in test and deny listed test") not in caplog.messages
+        assert text_msg(f"{log_msg} in dev and deny listed test") in caplog.messages
 
-        assert text_msg(f"{log_msg} in test, whitelisted test, no cow") not in caplog.messages
-        assert text_msg(f"{log_msg} in test, whitelisted test, english cow") in caplog.messages
-        assert text_msg(f"{log_msg} in dev, whitelisted test, english cow") not in caplog.messages
-        assert text_msg(f"{log_msg} in test, whitelisted test, german cow") not in caplog.messages
+        assert text_msg(f"{log_msg} in test, allow listed test, no cow") not in caplog.messages
+        assert text_msg(f"{log_msg} in test, allow listed test, english cow") in caplog.messages
+        assert text_msg(f"{log_msg} in dev, allow listed test, english cow") not in caplog.messages
+        assert text_msg(f"{log_msg} in test, allow listed test, german cow") not in caplog.messages
 
         slack_handler.setFormatter(None)
         caplog.clear()
@@ -321,9 +321,9 @@ class TestBasicLogging:
         log_msg = "warning from basic_blocks_filter"
         basic_blocks_filter(log_msg)
         assert (
-            default_msg(log_msg=f"{log_msg} in test and whitelisted test", levelno=logging.WARNING) in caplog.messages
+            default_msg(log_msg=f"{log_msg} in test and allow listed test", levelno=logging.WARNING) in caplog.messages
         )
         assert (
-            default_msg(log_msg=f"{log_msg} in dev and whitelisted test", levelno=logging.WARNING)
+            default_msg(log_msg=f"{log_msg} in dev and allow listed test", levelno=logging.WARNING)
             not in caplog.messages
         )
