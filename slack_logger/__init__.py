@@ -216,13 +216,50 @@ class SlackFilter(logging.Filter):
     def hide_by_fields(cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
         return cls(Configuration(extra_fields=fields), filterType=filterType)
 
+    def regexFilterConfig(self, serviceConfig: Configuration, record: LogRecord) -> bool:
+        import re
+
+        res_list = []
+        if self.config.service is not None:
+            regex = self.config.service
+            haystack = serviceConfig.service if serviceConfig.service is not None else ""
+            regex_match = re.search(regex, haystack)
+            res_list.append(regex_match is not None)
+        if self.config.environment is not None:
+            regex = self.config.environment
+            haystack = serviceConfig.environment if serviceConfig.environment is not None else ""
+            regex_match = re.search(regex, haystack)
+            res_list.append(regex_match is not None)
+        for field_key in self.config.extra_fields.keys():
+            filter_element = serviceConfig.extra_fields.get(field_key)
+            if filter_element is None:
+                res_list.append(False)
+            else:
+                regex = self.config.extra_fields[field_key]
+                haystack = filter_element
+                regex_match = re.search(regex, haystack)
+                res_list.append(regex_match is not None)
+
+        res: bool
+        match self.tpe:
+            case FilterType.AnyAllowList:
+                res = any(res_list)
+            case FilterType.AllAllowList:
+                res = all(res_list)
+            case FilterType.AnyDenyList:
+                res = not all(res_list)
+            case FilterType.AllDenyList:
+                res = not any(res_list)
+
+        log.debug(f"final result ({self.tpe}): res({res}) = {res_list}")
+        return res
+
     def filterConfig(self, serviceConfig: Configuration, record: LogRecord) -> bool:
         res_list = []
         if self.config.service is not None:
             res_list.append(serviceConfig.service == self.config.service)
         if self.config.environment is not None:
             res_list.append(serviceConfig.environment == self.config.environment)
-        if self.config.extra_fields != {}:
             for f in self.config.extra_fields.items():
                 res_list.append(f in serviceConfig.extra_fields.items())
 
