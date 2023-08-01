@@ -2,8 +2,7 @@ import logging
 
 import pytest
 
-from slack_logger import Configuration as SlackConfiguration
-from slack_logger import FilterType, SlackFilter, SlackFormatter, SlackHandler
+from slack_logger import FilterConfig, FilterType, FormatConfig, SlackFilter, SlackFormatter, SlackHandler
 
 from .utils import default_msg, text_msg
 
@@ -31,7 +30,7 @@ def test_allow_any_list_text_filter(caplog) -> None:  # type: ignore
     log_msg = "warning from basic_text_filter"
 
     # We allow logs from test environment
-    slackFilter10 = SlackFilter(config=SlackConfiguration(environment="test"), filterType=FilterType.AnyAllowList)
+    slackFilter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
     slack_handler.addFilter(slackFilter10)
 
     # Log from test environment
@@ -50,7 +49,7 @@ def test_allow_all_list_text_filter(caplog) -> None:  # type: ignore
 
     # We allow logs in test environment with extra_field {"cow": "moo"}
     slackFilter11 = SlackFilter(
-        config=SlackConfiguration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllAllowList
+        config=FilterConfig(environment="test", extra_fields={"cow": "moo"}, filter_type=FilterType.AllAllowList)
     )
     slack_handler.addFilter(slackFilter11)
 
@@ -80,7 +79,7 @@ def test_deny_any_list_text_filter(caplog) -> None:  # type: ignore
     log_msg = "warning from basic_text_filter"
 
     # We deny list logs from "test" environment
-    slackFilter20 = SlackFilter(config=SlackConfiguration(environment="test"), filterType=FilterType.AnyDenyList)
+    slackFilter20 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyDenyList))
     slack_handler.addFilter(slackFilter20)
 
     # Log from test environment
@@ -99,7 +98,7 @@ def test_deny_all_list_text_filter(caplog) -> None:  # type: ignore
 
     # We deny list logs from "test" environment
     slackFilter30 = SlackFilter(
-        config=SlackConfiguration(service="testrunner", extra_fields={"foo": "bar"}), filterType=FilterType.AllDenyList
+        config=FilterConfig(service="testrunner", extra_fields={"foo": "bar"}, filter_type=FilterType.AllDenyList)
     )
     slack_handler.addFilter(slackFilter30)
 
@@ -123,25 +122,23 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
     """Test if dey list filters works if any provided field match"""
     log_msg = "warning from basic_blocks_filter"
 
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
-
-    formatter = SlackFormatter.default(service_config)
+    # We define to be in test environment
+    test_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
+    formatter = SlackFormatter.default(test_config)
     slack_handler.setFormatter(formatter)
 
     # We allow logs from test environment
-    slackFilter10 = SlackFilter(config=SlackConfiguration(environment="test"), filterType=FilterType.AnyAllowList)
+    slackFilter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
     slack_handler.addFilter(slackFilter10)
 
     # Log from test environment
     logger.warning(f"{log_msg} in test and allow listed test")
 
+    # We define to be in dev environment
+    dev_config = FormatConfig(service="testrunner", environment="dev", extra_fields={"foo": "bar", "raven": "caw"})
+
     # We allow logs from dev environment
-    service_config = SlackConfiguration(
-        service="testrunner", environment="dev", extra_fields={"foo": "bar", "raven": "caw"}
-    )
-    formatter = SlackFormatter.default(service_config)
+    formatter = SlackFormatter.default(dev_config)
     slack_handler.setFormatter(formatter)
 
     # Log from dev environment
@@ -159,7 +156,9 @@ def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
 
     # We allow logs in test environment with extra_field {"cow": "moo"}
     slackFilter11 = SlackFilter(
-        config=SlackConfiguration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllAllowList
+        config=FilterConfig(
+            environment="test", extra_fields={"cow": "m.*"}, filter_type=FilterType.AllAllowList, use_regex=True
+        )
     )
     slack_handler.addFilter(slackFilter11)
 
@@ -181,4 +180,4 @@ def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
     assert text_msg(f"{log_msg} in test, allow listed test, no cow") not in caplog.messages
     assert text_msg(f"{log_msg} in test, allow listed test, english cow") in caplog.messages
     assert text_msg(f"{log_msg} in dev, allow listed test, english cow") not in caplog.messages
-    assert text_msg(f"{log_msg} in test, allow listed test, german cow") not in caplog.messages
+    assert text_msg(f"{log_msg} in test, allow listed test, german cow") in caplog.messages
