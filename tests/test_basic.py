@@ -3,8 +3,7 @@ from typing import Dict, Generator
 
 import pytest
 
-from slack_logger import Configuration as SlackConfiguration
-from slack_logger import SlackFormatter, SlackHandler
+from slack_logger import FormatConfig, SlackFormatter, SlackHandler
 
 from .utils import DEFAULT_ADDITIONAL_FIELDS, default_msg, minimal_msg, plain_msg, text_msg
 
@@ -64,7 +63,7 @@ def test_basic_plain_formatted_logging(caplog) -> None:  # type: ignore
 def test_basic_minimal_formatted_logging(caplog) -> None:  # type: ignore
     """Check if only correct level is logged when not using minimal SlackFormatter"""
     log_msg = "from basic_text_logging"
-    minimal_config = SlackConfiguration(service="testrunner", environment="test")
+    minimal_config = FormatConfig(service="testrunner", environment="test")
     formatter = SlackFormatter.minimal(minimal_config)
     slack_handler.setFormatter(formatter)
 
@@ -80,9 +79,7 @@ def test_basic_minimal_formatted_logging(caplog) -> None:  # type: ignore
 def test_basic_default_formatted_logging(caplog) -> None:  # type: ignore
     """Check if only correct level is logged when not using default SlackFormatter"""
     log_msg = "from basic_text_logging"
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
+    service_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
 
@@ -99,9 +96,7 @@ def test_basic_default_formatted_logging(caplog) -> None:  # type: ignore
 def test_dynamic_fields_additional(caplog) -> None:  # type: ignore
     """Test if adding extra fields to when creating log messages works"""
     log_msg = "from test_dynamic_fields"
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
+    service_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
     logger.warning(f"additional {log_msg}", extra={"extra_fields": {"cow": "moo"}})
@@ -117,9 +112,7 @@ def test_dynamic_fields_additional(caplog) -> None:  # type: ignore
 def test_dynamic_fields_overwrite(caplog) -> None:  # type: ignore
     """Test if overwriting extra fields to when creating log messages works"""
     log_msg = "from test_dynamic_fields"
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
+    service_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
 
@@ -135,9 +128,7 @@ def test_dynamic_fields_overwrite(caplog) -> None:  # type: ignore
 def test_exception_logging(caplog) -> None:  # type: ignore
     """Test if the stacktrace is extracted correctly when providing exc_info to log.error"""
     log_msg = "Error!"
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
+    service_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
 
@@ -156,9 +147,7 @@ def test_exception_logging(caplog) -> None:  # type: ignore
 def test_auto_exception_logging(caplog) -> None:  # type: ignore
     """Test if the stacktrace is extracted correctly when using log.exception"""
     log_msg = "Exception!"
-    service_config = SlackConfiguration(
-        service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
-    )
+    service_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"})
     formatter = SlackFormatter.default(service_config)
     slack_handler.setFormatter(formatter)
 
