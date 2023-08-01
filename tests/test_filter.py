@@ -151,3 +151,34 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
     assert (
         default_msg(log_msg=f"{log_msg} in dev and allow listed test", levelno=logging.WARNING) not in caplog.messages
     )
+
+
+def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
+    """Test if allow list filters works if all provided field match"""
+    log_msg = "warning from basic_text_filter"
+
+    # We allow logs in test environment with extra_field {"cow": "moo"}
+    slackFilter11 = SlackFilter(
+        config=SlackConfiguration(environment="test", extra_fields={"cow": "moo"}), filterType=FilterType.AllAllowList
+    )
+    slack_handler.addFilter(slackFilter11)
+
+    # Log from test environment
+    logger.warning(f"{log_msg} in test, allow listed test, no cow", extra={"filter": {"environment": "test"}})
+    logger.warning(
+        f"{log_msg} in test, allow listed test, english cow",
+        extra={"filter": {"environment": "test", "extra_fields": {"cow": "moo"}}},
+    )
+    logger.warning(
+        f"{log_msg} in dev, allow listed test, english cow",
+        extra={"filter": {"environment": "dev", "extra_fields": {"cow": "moo"}}},
+    )
+    logger.warning(
+        f"{log_msg} in test, allow listed test, german cow",
+        extra={"filter": {"environment": "test", "extra_fields": {"cow": "muh"}}},
+    )
+
+    assert text_msg(f"{log_msg} in test, allow listed test, no cow") not in caplog.messages
+    assert text_msg(f"{log_msg} in test, allow listed test, english cow") in caplog.messages
+    assert text_msg(f"{log_msg} in dev, allow listed test, english cow") not in caplog.messages
+    assert text_msg(f"{log_msg} in test, allow listed test, german cow") not in caplog.messages
