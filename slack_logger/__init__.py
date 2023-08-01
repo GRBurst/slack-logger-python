@@ -216,6 +216,18 @@ class SlackFilter(logging.Filter):
     def hide_by_fields(cls, fields: Dict[str, str], filterType: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
         return cls(Configuration(extra_fields=fields), filterType=filterType)
 
+    def match_filter(self, cond_list: List[bool]) -> bool:
+        match self.tpe:
+            case FilterType.AnyAllowList:
+                res = any(cond_list)
+            case FilterType.AllAllowList:
+                res = all(cond_list)
+            case FilterType.AnyDenyList:
+                res = not any(cond_list)
+            case FilterType.AllDenyList:
+                res = not all(cond_list)
+        return res
+
     def regexFilterConfig(self, serviceConfig: Configuration, record: LogRecord) -> bool:
         import re
 
@@ -240,16 +252,7 @@ class SlackFilter(logging.Filter):
                 regex_match = re.search(regex, haystack)
                 res_list.append(regex_match is not None)
 
-        res: bool
-        match self.tpe:
-            case FilterType.AnyAllowList:
-                res = any(res_list)
-            case FilterType.AllAllowList:
-                res = all(res_list)
-            case FilterType.AnyDenyList:
-                res = not all(res_list)
-            case FilterType.AllDenyList:
-                res = not any(res_list)
+        res: bool = self.match_filter(res_list)
 
         log.debug(f"final result ({self.tpe}): res({res}) = {res_list}")
         return res
@@ -260,19 +263,10 @@ class SlackFilter(logging.Filter):
             res_list.append(serviceConfig.service == self.config.service)
         if self.config.environment is not None:
             res_list.append(serviceConfig.environment == self.config.environment)
-            for f in self.config.extra_fields.items():
-                res_list.append(f in serviceConfig.extra_fields.items())
+        for f in self.config.extra_fields.items():
+            res_list.append(f in serviceConfig.extra_fields.items())
 
-        res: bool
-        match self.tpe:
-            case FilterType.AnyAllowList:
-                res = any(res_list)
-            case FilterType.AllAllowList:
-                res = all(res_list)
-            case FilterType.AnyDenyList:
-                res = not any(res_list)
-            case FilterType.AllDenyList:
-                res = not all(res_list)
+        res: bool = self.match_filter(res_list)
 
         log.debug(f"final result ({self.tpe}): res({res}) = {res_list}")
         return res
