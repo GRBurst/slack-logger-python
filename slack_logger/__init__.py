@@ -233,9 +233,9 @@ class SlackFilter(logging.Filter):
             case FilterType.AllAllowList:
                 res = all(res_list)
             case FilterType.AnyDenyList:
-                res = not all(res_list)
-            case FilterType.AllDenyList:
                 res = not any(res_list)
+            case FilterType.AllDenyList:
+                res = not all(res_list)
 
         log.debug(f"final result ({self.tpe}): res({res}) = {res_list}")
         return res
