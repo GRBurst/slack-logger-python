@@ -50,12 +50,12 @@ Extra fields are shown in blocks at the bottom of the message and can be dynamic
 Everything else stays the same:
 
 ```python
-from slack_logger import Configuration, SlackFormatter, SlackHandler
+from slack_logger import FormatConfig, SlackFormatter, SlackHandler
 
 logger = logging.getLogger(__name__)
 
-config = Configuration(service="testrunner", environment="test", extra_fields={"foo": "bar"})
-formatter = SlackFormatter.default(config)
+format_config = FormatConfig(service="testrunner", environment="test", extra_fields={"foo": "bar"})
+formatter = SlackFormatter.default(format_config)
 handler = SlackHandler.from_webhook(os.environ["SLACK_WEBHOOK"])
 handler.setFormatter(formatter)
 handler.setLevel(logging.WARN)
@@ -89,12 +89,12 @@ Given the following code snippet with a configuration and the default formatter:
 
 ```python
 import os
-from slack_logger import Configuration, SlackFormatter, SlackHandler
-service_config = Configuration(
+from slack_logger import FormatConfig, SlackFormatter, SlackHandler
+format_config = FormatConfig(
     service="testrunner", environment="test", extra_fields={"foo": "bar", "raven": "caw"}
 )
 slack_handler = SlackHandler.from_webhook(os.environ["SLACK_WEBHOOK"])
-formatter = SlackFormatter.default(service_config)
+formatter = SlackFormatter.default(format_config)
 slack_handler.setFormatter(formatter)
 log.addHandler(slack_handler)
 try:
@@ -178,7 +178,7 @@ You can import and overwrite it partially, or define a complete new set of emoji
 The following example demonstrates how you can add the emoji set to the `SlackFormatter`:
 
 ```python
-from slack_logger import Configuration, SlackFormatter
+from slack_logger import FormatConfig, SlackFormatter
 
 my_emojis = {
     logging.CRITICAL: ":x:",    # ❌
@@ -191,7 +191,7 @@ my_emojis = {
     logging.NOTSET: ":mega:",   # 📣
 }
 
-config = Configuration(service="testrunner", environment="test", emojis=my_emojis)
+config = FormatConfig(service="testrunner", environment="test", emojis=my_emojis)
 formatter = SlackFormatter.default(config)
 ```
 
@@ -202,13 +202,13 @@ Filters implement the logging interface of `Filters`.
 Design goal (4) and (5) are partially demonstrated.
 
 ```python
-from slack_logger import Configuration, SlackFilter, SlackHandler
+from slack_logger import FilterConfig, SlackFilter, SlackHandler
 import os
 import logging 
 
 logger = logging.getLogger("ProdFilter")
 # Allow only logs from `prod` environment
-filter = SlackFilter(config=Configuration(environment="prod"), filterType=FilterType.AnyAllowList)
+filter = SlackFilter(config=FilterConfig(environment="prod"), filterType=FilterType.AnyAllowList)
 slack_handler.addFilter(filter)
 logger.addHandler(slack_handler)
 
@@ -225,3 +225,5 @@ logger.warning(f"{log_msg} in dev environment and allow listed prod", extra={"fi
 ```
 
 The composition of configurations, filters and dynamic extra fields allow for a flexible way of specifying your message content and filter unwanted messages.
+
+More examples can be found it the [tests folder](https://github.com/GRBurst/slack-logger-python/tree/main/tests).
