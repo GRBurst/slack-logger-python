@@ -6,7 +6,8 @@ from enum import Enum
 from logging import LogRecord
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-from attrs import define
+from attrs import asdict, define
+from cattrs import structure
 from slack_sdk.models.attachments import Attachment
 from slack_sdk.models.blocks import Block, ContextBlock, DividerBlock, HeaderBlock, SectionBlock
 from slack_sdk.models.blocks.basic_components import MarkdownTextObject, PlainTextObject
@@ -208,7 +209,7 @@ class SlackFormatter(logging.Formatter):
 class SlackFilter(logging.Filter):
     config: FilterConfig
 
-    def __init__(self, config: FilterConfig):
+    def __init__(self, config: FilterConfig = FilterConfig()):
         super(SlackFilter, self).__init__()
         self.config = config
 
@@ -328,10 +329,12 @@ class DummyClient(AsyncWebhookClient):
 
 class SlackHandler(logging.Handler):
     client: AsyncWebhookClient
+    config: LogConfig
 
-    def __init__(self, client: AsyncWebhookClient):
+    def __init__(self, client: AsyncWebhookClient, config: LogConfig = LogConfig()):
         super(SlackHandler, self).__init__()
         self.client = client
+        self.config = config
 
     @classmethod
     def from_webhook(cls, webhook_url: str) -> "SlackHandler":
@@ -370,11 +373,23 @@ class SlackHandler(logging.Handler):
     def handle(self, record: LogRecord) -> bool:
         # This pre-filters the messages with the Slack Filters
         if isinstance(self.formatter, SlackFormatter) and self.formatter.config is not None:
-            format_config: LogConfig = self.formatter.config
+            combined_config: LogConfig = structure(
+                {
+                    **asdict(self.formatter.config),
+                    **{k: v for k, v in asdict(self.config).items() if v is not None},  # overwrite non None values
+                },
+                LogConfig,
+            )
+            log.debug(f"handler config: {self.config}")
+            log.debug(f"formatter config: {self.formatter.config}")
+            log.debug(f"combined config: {combined_config}")
             for sf in self.filters:
                 if isinstance(sf, SlackFilter):
-                    res = sf.filterConfig(serviceConfig=format_config, record=record)
-                    if not res:
+                    if sf.config.use_regex is True:
+                        res = sf.regexFilterConfig(serviceConfig=combined_config, record=record)
+                    else:
+                        res = sf.filterConfig(serviceConfig=combined_config, record=record)
+                    if res is False:
                         return False
 
         return super().handle(record)
