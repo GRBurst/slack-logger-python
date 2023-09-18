@@ -71,8 +71,61 @@ line_length = 120
 
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
-select = ["E", "F"]
-ignore = [ "E501" ] # line to long will be ignored and is handled by black
+select = [
+  "F",        # pyflakes
+  "E", "W",   # pycodestyle
+  "I",        # isort
+  "B",        # bugbears
+  "N",        # pep8-naming
+  "UP",       # pyupgrade (advocates modern syntax)
+  "YTT",      # flake8-2020 (checks for misuse of sys.version or sys.version_info)
+  "ANN",      # flake8-annotations (lightweight check for function type annotations)
+  "ASYNC",    # flake8-async (checks for bad async / asyncio practices)
+  "S",        # flake8-bandit (check for insecure code)
+  "FBT",      # flake8-boolean-trap (checks for boolean trap anti-pattern)
+  "A",        # flake8-builtins (checks for shadowed buildins)
+  "C4",       # flake8-comprehensions (hints for better and comprehensions)
+  "DTZ",      # flake8-datetimez (checks for unsafe naive datetime usage)
+  "T10",      # flake8-debugger (checks for debugger calls like pdb)
+  "EXE",      # flake8-executable (checks for permission and shebangs on executable python scripts, e.g. our jobs)
+  "FA",       # flake8-future-annotations (advocates modern PEP 563 syntax, extends pyupgrade)
+  "ISC",      # flake8-implicit-str-concat (checks for implicitly concatenated strings)
+  "G",        # flake8-logging-format (use "extra" keyword dict for passing args to log message for better performance)
+  "INP",      # flake8-no-pep420 (checks for missing __init__ file)
+  "PIE",      # flake8-pie (based on Clippy's let_and_return and Microsoft's TSLint rule no-unnecessary-local-variable)
+  "T20",      # flake8-print (checks for print usages)
+  "PT",       # flake8-pytest-style (checking common style issues or inconsistencies with pytest)
+  "Q",        # flake8-quotes (use double quotes)
+  "RSE",      # flake8-raise (checks for unnecessary parentheses on raised exceptions)
+  "RET",      # flake8-return (checks for unnecessary return patterns)
+  "SLF",      # flake8-self (checks for private member access)
+  "SLOT",     # flake8-slots (require __slots__ to be defined for subclasses of immutable types)
+  "SIM",      # flake8-simplify (helps you simplify your code)
+  "TID",      # flake8-tidy-imports (helps you write tidier imports)
+  "INT",      # flake8-gettext (use lazy string evaluation)
+  "ARG",      # flake8-unused-arguments (checks for unused function arguments)
+  "PTH",      # flake8-use-pathlib (checks for functions that can be replaced by pathlib)
+  "TD",       # flake8-todos (checks TODOs in the project)
+  "ERA",      # eradicate (remove commented-out code)
+  "PD",       # pandas-vet (provides opinionated linting for pandas)
+  "PL",       # Pylint (use rules from pylint)
+  "TRY",      # tryceratops (prevent exception handling anti-patterns)
+  "FLY",      # flynt (use f-strings)
+  "NPY",      # numpy specific rules
+  "PERF",     # perflint (checks for performance anti-patterns)
+  # "FURB",     # refurb (tool for refurbishing and modernizing Python codebases)
+  "RUF",      # Ruff-specific rules
+]
+
+ignore = [
+  "E501",     # line to long will be ignored and is handled by black
+  "TD003",    # we don't need to add an issue to a todo
+  "ANN101",   # skip type annotation for `self` in method
+  "ANN102",   # skip type annotation for `cls` in method
+]
+
+format = "grouped"
+show-fixes = true
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
@@ -117,6 +170,10 @@ target-version = "py310"
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
+
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["S101"] # allow asserts in tests
 
 
 [tool.mypy]

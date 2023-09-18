@@ -15,7 +15,7 @@ logger.addHandler(slack_handler)
 
 
 @pytest.fixture(autouse=True)
-def cleanup(caplog) -> None:  # type: ignore
+def cleanup(caplog) -> None:  # type: ignore # noqa: ANN001
     caplog.clear()
     slack_handler.setFormatter(None)
     slack_handler.filters = []
@@ -25,46 +25,49 @@ def cleanup(caplog) -> None:  # type: ignore
     caplog.clear()
 
 
-def test_allow_any_list_text_filter(caplog) -> None:  # type: ignore
+def test_allow_any_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if allow list filters works if any provided field matches"""
     log_msg = "warning from basic_text_filter"
 
     # We allow logs from test environment
-    slackFilter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
-    slack_handler.addFilter(slackFilter10)
+    slack_filter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
+    slack_handler.addFilter(slack_filter10)
 
     # Log from test environment
-    logger.warning(f"{log_msg} in test and allow listed test", extra={"filter": {"environment": "test"}})
+    logger.warning("%s in test and allow listed test", log_msg, extra={"filter": {"environment": "test"}})
 
     # Log from dev environment
-    logger.warning(f"{log_msg} in dev and allow listed test", extra={"filter": {"environment": "dev"}})
+    logger.warning("%s in dev and allow listed test", log_msg, extra={"filter": {"environment": "dev"}})
 
     assert text_msg(f"{log_msg} in test and allow listed test") in caplog.messages
     assert text_msg(f"{log_msg} in dev and allow listed test") not in caplog.messages
 
 
-def test_allow_all_list_text_filter(caplog) -> None:  # type: ignore
+def test_allow_all_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if allow list filters works if all provided field match"""
     log_msg = "warning from basic_text_filter"
 
     # We allow logs in test environment with extra_field {"cow": "moo"}
-    slackFilter11 = SlackFilter(
+    slack_filter11 = SlackFilter(
         config=FilterConfig(environment="test", extra_fields={"cow": "moo"}, filter_type=FilterType.AllAllowList)
     )
-    slack_handler.addFilter(slackFilter11)
+    slack_handler.addFilter(slack_filter11)
 
     # Log from test environment
-    logger.warning(f"{log_msg} in test, allow listed test, no cow", extra={"filter": {"environment": "test"}})
+    logger.warning("%s in test, allow listed test, no cow", log_msg, extra={"filter": {"environment": "test"}})
     logger.warning(
-        f"{log_msg} in test, allow listed test, english cow",
+        "%s in test, allow listed test, english cow",
+        log_msg,
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in dev, allow listed test, english cow",
+        "%s in dev, allow listed test, english cow",
+        log_msg,
         extra={"filter": {"environment": "dev", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in test, allow listed test, german cow",
+        "%s in test, allow listed test, german cow",
+        log_msg,
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "muh"}}},
     )
 
@@ -74,43 +77,45 @@ def test_allow_all_list_text_filter(caplog) -> None:  # type: ignore
     assert text_msg(f"{log_msg} in test, allow listed test, german cow") not in caplog.messages
 
 
-def test_deny_any_list_text_filter(caplog) -> None:  # type: ignore
+def test_deny_any_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if deny list filters works if any provided field match"""
     log_msg = "warning from basic_text_filter"
 
     # We deny list logs from "test" environment
-    slackFilter20 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyDenyList))
-    slack_handler.addFilter(slackFilter20)
+    slack_filter20 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyDenyList))
+    slack_handler.addFilter(slack_filter20)
 
     # Log from test environment
-    logger.warning(f"{log_msg} in test and deny listed test", extra={"filter": {"environment": "test"}})
+    logger.warning("%s in test and deny listed test", log_msg, extra={"filter": {"environment": "test"}})
 
     # Log from dev environment
-    logger.warning(f"{log_msg} in dev and deny listed test", extra={"filter": {"environment": "dev"}})
+    logger.warning("%s in dev and deny listed test", log_msg, extra={"filter": {"environment": "dev"}})
 
     assert text_msg(f"{log_msg} in test and deny listed test") not in caplog.messages
     assert text_msg(f"{log_msg} in dev and deny listed test") in caplog.messages
 
 
-def test_deny_all_list_text_filter(caplog) -> None:  # type: ignore
+def test_deny_all_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if deny list filters works if any provided field match"""
     log_msg = "warning from basic_text_filter"
 
     # We deny list logs from "test" environment
-    slackFilter30 = SlackFilter(
+    slack_filter30 = SlackFilter(
         config=FilterConfig(service="testrunner", extra_fields={"foo": "bar"}, filter_type=FilterType.AllDenyList)
     )
-    slack_handler.addFilter(slackFilter30)
+    slack_handler.addFilter(slack_filter30)
 
     # Log with matching config
     logger.warning(
-        f"{log_msg} with match all deny listed test",
+        "%s with match all deny listed test",
+        log_msg,
         extra={"filter": {"service": "testrunner", "extra_fields": {"foo": "bar"}}},
     )
 
     # Log with different foo
     logger.warning(
-        f"{log_msg} without match all deny listed test",
+        "%s without match all deny listed test",
+        log_msg,
         extra={"filter": {"service": "testrunner", "extra_fields": {"foo": "muh"}}},
     )
 
@@ -118,7 +123,7 @@ def test_deny_all_list_text_filter(caplog) -> None:  # type: ignore
     assert text_msg(f"{log_msg} without match all deny listed test") in caplog.messages
 
 
-def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
+def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if dey list filters works if any provided field match"""
     log_msg = "warning from basic_blocks_filter"
 
@@ -128,11 +133,11 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
     slack_handler.setFormatter(formatter)
 
     # We allow logs from test environment
-    slackFilter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
-    slack_handler.addFilter(slackFilter10)
+    slack_filter10 = SlackFilter(config=FilterConfig(environment="test", filter_type=FilterType.AnyAllowList))
+    slack_handler.addFilter(slack_filter10)
 
     # Log from test environment
-    logger.warning(f"{log_msg} in test and allow listed test")
+    logger.warning("%s in test and allow listed test", log_msg)
 
     # We define to be in dev environment
     dev_config = FormatConfig(service="testrunner", environment="dev", extra_fields={"foo": "bar", "raven": "caw"})
@@ -142,7 +147,7 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
     slack_handler.setFormatter(formatter)
 
     # Log from dev environment
-    logger.warning(f"{log_msg} in dev and allow listed test")
+    logger.warning("%s in dev and allow listed test", log_msg)
 
     assert default_msg(log_msg=f"{log_msg} in test and allow listed test", levelno=logging.WARNING) in caplog.messages
     assert (
@@ -150,30 +155,33 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore
     )
 
 
-def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
+def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if allow list filters works if all provided field match"""
     log_msg = "warning from basic_text_filter"
 
     # We allow logs in test environment with extra_field {"cow": "moo"}
-    slackFilter11 = SlackFilter(
+    slack_filter11 = SlackFilter(
         config=FilterConfig(
             environment="test", extra_fields={"cow": "m.*"}, filter_type=FilterType.AllAllowList, use_regex=True
         )
     )
-    slack_handler.addFilter(slackFilter11)
+    slack_handler.addFilter(slack_filter11)
 
     # Log from test environment
-    logger.warning(f"{log_msg} in test, allow listed test, no cow", extra={"filter": {"environment": "test"}})
+    logger.warning("%s in test, allow listed test, no cow", log_msg, extra={"filter": {"environment": "test"}})
     logger.warning(
-        f"{log_msg} in test, allow listed test, english cow",
+        "%s in test, allow listed test, english cow",
+        log_msg,
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in dev, allow listed test, english cow",
+        "%s in dev, allow listed test, english cow",
+        log_msg,
         extra={"filter": {"environment": "dev", "extra_fields": {"cow": "moo"}}},
     )
     logger.warning(
-        f"{log_msg} in test, allow listed test, german cow",
+        "%s in test, allow listed test, german cow",
+        log_msg,
         extra={"filter": {"environment": "test", "extra_fields": {"cow": "muh"}}},
     )
 
@@ -183,32 +191,34 @@ def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
     assert text_msg(f"{log_msg} in test, allow listed test, german cow") in caplog.messages
 
 
-def test_deny_any_list_regex_context_filter(caplog) -> None:  # type: ignore
+def test_deny_any_list_regex_context_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if combined filters works"""
     log_msg = "error from basic_text_filter on context"
 
     # We allow only logs from prod but deny logs with a context containing "job"
-    slackFilter21 = SlackFilter(config=FilterConfig(environment="prod"))
-    slackFilter22 = SlackFilter(
+    slack_filter21 = SlackFilter(config=FilterConfig(environment="prod"))
+    slack_filter22 = SlackFilter(
         config=FilterConfig(context=[".*job.*"], filter_type=FilterType.AnyDenyList, use_regex=True)
     )
-    slack_handler.addFilter(slackFilter21)
-    slack_handler.addFilter(slackFilter22)
+    slack_handler.addFilter(slack_filter21)
+    slack_handler.addFilter(slack_filter22)
 
     # Log from dev environment
     logger.error(
-        f"{log_msg} in dev and allow listed prod, deny listed job context", extra={"filter": {"environment": "dev"}}
+        "%s in dev and allow listed prod, deny listed job context", log_msg, extra={"filter": {"environment": "dev"}}
     )
 
     # Log from prod environment, but not with a "job" context
     logger.error(
-        f"{log_msg} in prod no job and allow listed prod, deny listed job context",
+        "%s in prod no job and allow listed prod, deny listed job context",
+        log_msg,
         extra={"filter": {"environment": "prod", "context": ["foo", "bar"]}},
     )
 
     # Log from prod environment with "job" context
     logger.error(
-        f"{log_msg} in prod in job and allow listed prod, deny listed job context",
+        "%s in prod in job and allow listed prod, deny listed job context",
+        log_msg,
         extra={"filter": {"environment": "prod", "context": ["foo", "job", "bar"]}},
     )
 

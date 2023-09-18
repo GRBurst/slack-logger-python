@@ -1,21 +1,20 @@
 import json
 import logging
-from typing import Dict, List
 
 from slack_logger import DEFAULT_EMOJIS
 
-DEFAULT_ADDITIONAL_FIELDS: Dict[str, Dict[str, str]] = {
+DEFAULT_ADDITIONAL_FIELDS: dict[str, dict[str, str]] = {
     "foo": {"text": "*foo*\nbar", "type": "mrkdwn"},
     "raven": {"text": "*raven*\ncaw", "type": "mrkdwn"},
 }
 
 
 def default_msg(
-    log_msg: str, levelno: int, additional_fields_dict: Dict[str, Dict[str, str]] = DEFAULT_ADDITIONAL_FIELDS
+    log_msg: str, levelno: int, additional_fields_dict: dict[str, dict[str, str]] = DEFAULT_ADDITIONAL_FIELDS
 ) -> str:
-    additional_fields: List[Dict[str, str]] = list(additional_fields_dict.values())
+    additional_fields: list[dict[str, str]] = list(additional_fields_dict.values())
     emoji = DEFAULT_EMOJIS.get(levelno)
-    level_name = logging._levelToName.get(levelno)
+    level_name = logging.getLevelName(levelno)
     return json.dumps(
         {
             "blocks": [
@@ -38,7 +37,7 @@ def default_msg(
 
 def minimal_msg(log_msg: str, levelno: int) -> str:
     emoji = DEFAULT_EMOJIS.get(levelno)
-    level_name = logging._levelToName.get(levelno)
+    level_name = logging.getLevelName(levelno)
     return json.dumps(
         {
             "blocks": [
