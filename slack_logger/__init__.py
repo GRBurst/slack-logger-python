@@ -321,6 +321,7 @@ class DummyClient(AsyncWebhookClient):
         delete_original: Optional[bool] = None,
         unfurl_links: Optional[bool] = None,
         unfurl_media: Optional[bool] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> WebhookResponse:
         assert text is not None or blocks is not None
