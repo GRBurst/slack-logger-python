@@ -137,3 +137,8 @@ testpaths = [
 source = [
     "slack_logger"
 ]
+
+[tool.pip-tools]
+generate-hashes = true
+strip_extras = true
+allow_unsafe = true
