@@ -10,7 +10,7 @@ logger = logging.getLogger("FilterTest")
 
 # Setup test handler
 slack_handler = SlackHandler.dummy()
-slack_handler.setLevel(logging.WARN)
+slack_handler.setLevel(logging.WARNING)
 logger.addHandler(slack_handler)
 
 
@@ -181,3 +181,37 @@ def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore
     assert text_msg(f"{log_msg} in test, allow listed test, english cow") in caplog.messages
     assert text_msg(f"{log_msg} in dev, allow listed test, english cow") not in caplog.messages
     assert text_msg(f"{log_msg} in test, allow listed test, german cow") in caplog.messages
+
+
+def test_deny_any_list_regex_context_filter(caplog) -> None:  # type: ignore
+    """Test if combined filters works"""
+    log_msg = "error from basic_text_filter on context"
+
+    # We allow only logs from prod but deny logs with a context containing "job"
+    slackFilter21 = SlackFilter(config=FilterConfig(environment="prod"))
+    slackFilter22 = SlackFilter(
+        config=FilterConfig(context=[".*job.*"], filter_type=FilterType.AnyDenyList, use_regex=True)
+    )
+    slack_handler.addFilter(slackFilter21)
+    slack_handler.addFilter(slackFilter22)
+
+    # Log from dev environment
+    logger.error(
+        f"{log_msg} in dev and allow listed prod, deny listed job context", extra={"filter": {"environment": "dev"}}
+    )
+
+    # Log from prod environment, but not with a "job" context
+    logger.error(
+        f"{log_msg} in prod no job and allow listed prod, deny listed job context",
+        extra={"filter": {"environment": "prod", "context": ["foo", "bar"]}},
+    )
+
+    # Log from prod environment with "job" context
+    logger.error(
+        f"{log_msg} in prod in job and allow listed prod, deny listed job context",
+        extra={"filter": {"environment": "prod", "context": ["foo", "job", "bar"]}},
+    )
+
+    assert text_msg(f"{log_msg} in dev and allow listed prod, deny listed job context") not in caplog.messages
+    assert text_msg(f"{log_msg} in prod no job and allow listed prod, deny listed job context") in caplog.messages
+    assert text_msg(f"{log_msg} in prod in job and allow listed prod, deny listed job context") not in caplog.messages

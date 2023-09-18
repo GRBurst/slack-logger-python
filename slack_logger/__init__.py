@@ -252,6 +252,13 @@ class SlackFilter(logging.Filter):
             haystack = serviceConfig.environment if serviceConfig.environment is not None else ""
             regex_match = re.search(regex, haystack)
             res_list.append(regex_match is not None)
+        if self.config.context != []:
+            regex_list = self.config.context
+            haystack_list = serviceConfig.context if serviceConfig.context != [] else []
+            for haystack in haystack_list:
+                for regex in regex_list:
+                    regex_match = re.search(regex, haystack)
+                    res_list.append(regex_match is not None)
         for field_key in self.config.extra_fields.keys():
             filter_element = serviceConfig.extra_fields.get(field_key)
             if filter_element is None:
@@ -271,6 +278,10 @@ class SlackFilter(logging.Filter):
             res_list.append(serviceConfig.service == self.config.service)
         if self.config.environment is not None:
             res_list.append(serviceConfig.environment == self.config.environment)
+        if self.config.context != []:
+            for filter_context in self.config.context:
+                for service_context in serviceConfig.context:
+                    res_list.append(filter_context == service_context)
         for f in self.config.extra_fields.items():
             res_list.append(f in serviceConfig.extra_fields.items())
 
@@ -286,6 +297,7 @@ class SlackFilter(logging.Filter):
         rconfig: FilterConfig = FilterConfig(
             service=log_filters.get("service", None),
             environment=log_filters.get("environment", None),
+            context=log_filters.get("context", []),
             extra_fields=log_filters.get("extra_fields", {}),
         )
         if self.config.use_regex is True:
@@ -385,6 +397,7 @@ class SlackHandler(logging.Handler):
             log.debug(f"combined config: {combined_config}")
             for sf in self.filters:
                 if isinstance(sf, SlackFilter):
+                    res = True
                     if sf.config.use_regex is True:
                         res = sf.regexFilterConfig(serviceConfig=combined_config, record=record)
                     else:
