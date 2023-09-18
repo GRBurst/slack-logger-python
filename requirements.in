@@ -1,0 +1,4 @@
+aiohttp ~= 3.8
+attrs ~= 23.1
+cattrs ~= 23.1
+slack_sdk ~= 3.22
