@@ -2,11 +2,13 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from enum import Enum
 from logging import LogRecord
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any
 
-from attrs import asdict, define
+from aiohttp.web_exceptions import HTTPOk
+from attrs import Factory, asdict, define
 from cattrs import structure
 from slack_sdk.models.attachments import Attachment
 from slack_sdk.models.blocks import Block, ContextBlock, DividerBlock, HeaderBlock, SectionBlock
@@ -16,6 +18,12 @@ from slack_sdk.webhook.webhook_response import WebhookResponse
 
 log = logging.getLogger("slack_logger")
 log.setLevel(logging.DEBUG)
+
+
+class SendError(Exception):
+    def __init__(self, code: int, msg: str) -> None:
+        super().__init__(f"Slack responds unsuccessful with code {code}: {msg}")
+
 
 # Maps log levels to emojs
 DEFAULT_EMOJIS = {
@@ -39,15 +47,15 @@ class FilterType(Enum):
 
 @define
 class LogConfig:
-    service: Optional[str] = None
-    environment: Optional[str] = None
-    context: List[str] = []
-    extra_fields: Dict[str, str] = {}
+    service: str | None = None
+    environment: str | None = None
+    context: list[str] = Factory(list)
+    extra_fields: dict[str, str] = Factory(dict)
 
 
 @define
 class FormatConfig(LogConfig):
-    emojis: Dict[int, str] = DEFAULT_EMOJIS
+    emojis: dict[int, str] = DEFAULT_EMOJIS
 
 
 @define
@@ -59,27 +67,27 @@ class FilterConfig(LogConfig):
 @define
 class MessageDesign(ABC):
     @abstractmethod
-    def format_blocks(self, record: LogRecord) -> Sequence[Optional[Block]]:
+    def format_blocks(self, record: LogRecord) -> Sequence[Block | None]:
         pass
 
-    def get_env(self, config: LogConfig, record: LogRecord) -> Optional[str]:
-        dynamic_env: Optional[str] = getattr(record, "environment", None)
+    def get_env(self, config: LogConfig, record: LogRecord) -> str | None:
+        dynamic_env: str | None = getattr(record, "environment", None)
         if dynamic_env is not None:
             return dynamic_env
         if config.environment is not None:
             return config.environment
         return None
 
-    def get_service(self, config: LogConfig, record: LogRecord) -> Optional[str]:
-        dynamic_service: Optional[str] = getattr(record, "service", None)
+    def get_service(self, config: LogConfig, record: LogRecord) -> str | None:
+        dynamic_service: str | None = getattr(record, "service", None)
         if dynamic_service is not None:
             return dynamic_service
         if config.service is not None:
             return config.service
         return None
 
-    def construct_header(self, record: LogRecord, config: LogConfig, icon: Optional[str], level: str) -> HeaderBlock:
-        service: Optional[str] = self.get_service(config=config, record=record)
+    def construct_header(self, record: LogRecord, config: LogConfig, icon: str | None, level: str) -> HeaderBlock:
+        service: str | None = self.get_service(config=config, record=record)
         header_msg: str
         if icon is not None:
             header_msg = f"{icon} "
@@ -91,31 +99,31 @@ class MessageDesign(ABC):
 
         return HeaderBlock(text=PlainTextObject(text=header_msg))
 
-    def construct_context(
-        self, config: LogConfig, env: Optional[str], service: Optional[str]
-    ) -> Optional[ContextBlock]:
+    def construct_context(self, config: LogConfig, env: str | None, service: str | None) -> ContextBlock | None:
         if config.context != []:
             context_msg = ", ".join(config.context)
             return ContextBlock(elements=[MarkdownTextObject(text=context_msg)])
-        elif env is not None and service is not None:
+
+        if env is not None and service is not None:
             return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}, {service}")])
-        elif env is None:
+        if env is None:
             return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {env}")])
-        elif service is None:
+        if service is None:
             return ContextBlock(elements=[MarkdownTextObject(text=f":point_right: {service}")])
+
         return None
 
-    def format(self, record: LogRecord) -> str:
-        maybe_blocks: Sequence[Optional[Block]] = self.format_blocks(record=record)
+    def format(self, record: LogRecord) -> str:  # noqa: A003 (allow method name "format")
+        maybe_blocks: Sequence[Block | None] = self.format_blocks(record=record)
         blocks: Sequence[Block] = [b for b in maybe_blocks if b is not None]
-        str_blocks: str = json.dumps(list(map(lambda block: block.to_dict(), blocks)))
-        log.debug(f"str_blocks: {str_blocks}")
+        str_blocks: str = json.dumps([block.to_dict() for block in blocks])
+        log.debug("str_blocks: %s", str_blocks)
         return str_blocks
 
 
 @define
 class NoDesign(MessageDesign):
-    def format_blocks(self, record: LogRecord) -> Sequence[Optional[Block]]:
+    def format_blocks(self, record: LogRecord) -> Sequence[Block | None]:
         return [SectionBlock(text=PlainTextObject(text=record.getMessage()))]
 
 
@@ -123,7 +131,7 @@ class NoDesign(MessageDesign):
 class MinimalDesign(MessageDesign):
     config: FormatConfig
 
-    def format_blocks(self, record: LogRecord) -> Sequence[Optional[Block]]:
+    def format_blocks(self, record: LogRecord) -> Sequence[Block | None]:
         level = record.levelname
         message = record.getMessage()
         icon = self.config.emojis.get(record.levelno)
@@ -143,31 +151,31 @@ class MinimalDesign(MessageDesign):
 class RichDesign(MessageDesign):
     config: FormatConfig
 
-    def format_blocks(self, record: LogRecord) -> Sequence[Optional[Block]]:
+    def format_blocks(self, record: LogRecord) -> Sequence[Block | None]:
         level = record.levelname
         message = record.getMessage()
         icon = self.config.emojis.get(record.levelno)
 
-        env: Optional[str] = self.get_env(config=self.config, record=record)
-        service: Optional[str] = self.get_service(config=self.config, record=record)
+        env: str | None = self.get_env(config=self.config, record=record)
+        service: str | None = self.get_service(config=self.config, record=record)
 
         header: HeaderBlock = self.construct_header(record=record, config=self.config, icon=icon, level=level)
-        context: Optional[ContextBlock] = self.construct_context(config=self.config, env=env, service=service)
+        context: ContextBlock | None = self.construct_context(config=self.config, env=env, service=service)
         body = SectionBlock(text=MarkdownTextObject(text=message))
 
-        error: Optional[SectionBlock] = None
+        error: SectionBlock | None = None
         if record.exc_info is not None:
             error = SectionBlock(text=MarkdownTextObject(text=f"```{record.exc_text}```"))
 
         dynamic_extra_fields = getattr(record, "extra_fields", {})
         all_extra_fields = {**self.config.extra_fields, **dynamic_extra_fields}
-        fields: Optional[SectionBlock] = None
+        fields: SectionBlock | None = None
         if all_extra_fields != {}:
             fields = SectionBlock(
                 fields=[MarkdownTextObject(text=f"*{key}*\n{value}") for key, value in all_extra_fields.items()]
             )
 
-        maybe_blocks: Sequence[Optional[Block]] = [
+        maybe_blocks: Sequence[Block | None] = [
             header,
             context,
             DividerBlock(),
@@ -182,15 +190,15 @@ class RichDesign(MessageDesign):
 
 class SlackFormatter(logging.Formatter):
     design: MessageDesign
-    config: Optional[FormatConfig]
+    config: FormatConfig | None
 
-    def __init__(self, design: MessageDesign, config: Optional[FormatConfig] = None):
-        super(SlackFormatter, self).__init__()
+    def __init__(self, design: MessageDesign, config: FormatConfig | None = None) -> None:
+        super().__init__()
         self.design = design
         self.config = config
 
     @classmethod
-    def plain(cls, config: Optional[FormatConfig] = None) -> "SlackFormatter":
+    def plain(cls, config: FormatConfig | None = None) -> "SlackFormatter":
         return cls(design=NoDesign(), config=config)
 
     @classmethod
@@ -201,7 +209,7 @@ class SlackFormatter(logging.Formatter):
     def default(cls, config: FormatConfig) -> "SlackFormatter":
         return cls(design=RichDesign(config), config=config)
 
-    def format(self, record: LogRecord) -> str:
+    def format(self, record: LogRecord) -> str:  # noqa: A003 (allow method name "format")
         super().format(record)
         return self.design.format(record)
 
@@ -209,23 +217,33 @@ class SlackFormatter(logging.Formatter):
 class SlackFilter(logging.Filter):
     config: FilterConfig
 
-    def __init__(self, config: FilterConfig = FilterConfig()):
-        super(SlackFilter, self).__init__()
-        self.config = config
+    def __init__(self, config: FilterConfig | None) -> None:
+        self.config = config if config is not None else FilterConfig()
+        super().__init__()
 
     @classmethod
     def filter_by_fields(
-        cls, fields: Dict[str, str], filter_type: FilterType = FilterType.AnyAllowList, use_regex: bool = False
+        cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyAllowList
     ) -> "SlackFilter":
-        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=use_regex))
+        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=False))
 
     @classmethod
-    def hide_by_fields(
-        cls, fields: Dict[str, str], filter_type: FilterType = FilterType.AnyDenyList, use_regex: bool = False
+    def filter_by_fields_regex(
+        cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyAllowList
     ) -> "SlackFilter":
-        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=use_regex))
+        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=True))
 
-    def match_filter(self, cond_list: List[bool]) -> bool:
+    @classmethod
+    def hide_by_fields(cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
+        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=False))
+
+    @classmethod
+    def hide_by_fields_regex(
+        cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyDenyList
+    ) -> "SlackFilter":
+        return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=True))
+
+    def match_filter(self, cond_list: list[bool]) -> bool:
         match self.config.filter_type:
             case FilterType.AnyAllowList:
                 res = any(cond_list)
@@ -235,55 +253,56 @@ class SlackFilter(logging.Filter):
                 res = not any(cond_list)
             case FilterType.AllDenyList:
                 res = not all(cond_list)
-        log.debug(f"final result ({self.config.filter_type}): res({res}) = {cond_list}")
+        log.debug("final result (%s): res(%s) = %s", self.config.filter_type, res, cond_list)
         return res
 
-    def regexFilterConfig(self, serviceConfig: LogConfig, record: LogRecord) -> bool:
+    def regex_filter_config(self, service_config: LogConfig) -> bool:
         import re
 
         res_list = []
         if self.config.service is not None:
             regex = self.config.service
-            haystack = serviceConfig.service if serviceConfig.service is not None else ""
+            haystack = service_config.service if service_config.service is not None else ""
             regex_match = re.search(regex, haystack)
             res_list.append(regex_match is not None)
         if self.config.environment is not None:
             regex = self.config.environment
-            haystack = serviceConfig.environment if serviceConfig.environment is not None else ""
+            haystack = service_config.environment if service_config.environment is not None else ""
             regex_match = re.search(regex, haystack)
             res_list.append(regex_match is not None)
         if self.config.context != []:
             regex_list = self.config.context
-            haystack_list = serviceConfig.context if serviceConfig.context != [] else []
+            haystack_list = service_config.context if service_config.context != [] else []
             for haystack in haystack_list:
                 for regex in regex_list:
                     regex_match = re.search(regex, haystack)
                     res_list.append(regex_match is not None)
-        for field_key in self.config.extra_fields.keys():
-            filter_element = serviceConfig.extra_fields.get(field_key)
+        for field_key in self.config.extra_fields:
+            filter_element = service_config.extra_fields.get(field_key)
             if filter_element is None:
                 res_list.append(False)
             else:
                 regex = self.config.extra_fields[field_key]
                 haystack = filter_element
                 regex_match = re.search(regex, haystack)
-                log.debug(f"regex filter with regex = {regex}, haystack = {filter_element}")
+                log.debug("regex filter with regex = %s, haystack = %s", regex, filter_element)
                 res_list.append(regex_match is not None)
 
         return self.match_filter(res_list)
 
-    def filterConfig(self, serviceConfig: LogConfig, record: LogRecord) -> bool:
+    def filter_config(self, service_config: LogConfig) -> bool:
         res_list = []
         if self.config.service is not None:
-            res_list.append(serviceConfig.service == self.config.service)
+            res_list.append(service_config.service == self.config.service)
         if self.config.environment is not None:
-            res_list.append(serviceConfig.environment == self.config.environment)
+            res_list.append(service_config.environment == self.config.environment)
         if self.config.context != []:
-            for filter_context in self.config.context:
-                for service_context in serviceConfig.context:
-                    res_list.append(filter_context == service_context)
-        for f in self.config.extra_fields.items():
-            res_list.append(f in serviceConfig.extra_fields.items())
+            res_list.extend(
+                filter_context == service_context
+                for filter_context in self.config.context
+                for service_context in service_config.context
+            )
+        res_list.extend(f in service_config.extra_fields.items() for f in self.config.extra_fields.items())
 
         return self.match_filter(res_list)
 
@@ -293,7 +312,7 @@ class SlackFilter(logging.Filter):
             return True
 
         extra_fields = log_filters.get("extra_fields", {})
-        log.debug(f"EXTRA FIELDS: {extra_fields}")
+        log.debug("EXTRA FIELDS: %s", extra_fields)
         rconfig: FilterConfig = FilterConfig(
             service=log_filters.get("service", None),
             environment=log_filters.get("environment", None),
@@ -301,36 +320,36 @@ class SlackFilter(logging.Filter):
             extra_fields=log_filters.get("extra_fields", {}),
         )
         if self.config.use_regex is True:
-            return self.regexFilterConfig(serviceConfig=rconfig, record=record)
-        else:
-            return self.filterConfig(serviceConfig=rconfig, record=record)
+            return self.regex_filter_config(service_config=rconfig)
+
+        return self.filter_config(service_config=rconfig)
 
 
 @define
 class DummyClient(AsyncWebhookClient):
     url: str = ""
 
-    async def send(
+    async def send(  # noqa: PLR0913 (allow many arguments here)
         self,
         *,
-        text: Optional[str] = None,
-        attachments: Optional[Sequence[Union[Dict[str, Any], Attachment]]] = None,
-        blocks: Optional[Sequence[Union[Dict[str, Any], Block]]] = None,
-        response_type: Optional[str] = None,
-        replace_original: Optional[bool] = None,
-        delete_original: Optional[bool] = None,
-        unfurl_links: Optional[bool] = None,
-        unfurl_media: Optional[bool] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        text: str | None = None,
+        attachments: Sequence[dict[str, Any] | Attachment] | None = None,  # noqa: ARG002
+        blocks: Sequence[dict[str, Any] | Block] | None = None,
+        response_type: str | None = None,  # noqa: ARG002
+        replace_original: bool | None = None,  # noqa: ARG002
+        delete_original: bool | None = None,  # noqa: ARG002
+        unfurl_links: bool | None = None,  # noqa: ARG002
+        unfurl_media: bool | None = None,  # noqa: ARG002
+        metadata: dict[str, Any] | None = None,  # noqa: ARG002
+        headers: dict[str, str] | None = None,  # noqa: ARG002
     ) -> WebhookResponse:
-        assert text is not None or blocks is not None
+        assert text is not None or blocks is not None  # noqa: S101 (allow assert here)
 
         t: str
         if text is None and blocks is not None:
             res = []
             for block in blocks:
-                assert isinstance(block, Block)
+                assert isinstance(block, Block)  # noqa: S101 (allow assert here)
                 res.append(block.to_dict())
             t = json.dumps({"blocks": res})
         else:
@@ -344,32 +363,30 @@ class SlackHandler(logging.Handler):
     client: AsyncWebhookClient
     config: LogConfig
 
-    def __init__(self, client: AsyncWebhookClient, config: LogConfig = LogConfig()):
-        super(SlackHandler, self).__init__()
+    def __init__(self, client: AsyncWebhookClient, config: LogConfig | None) -> None:
         self.client = client
-        self.config = config
+        self.config = config if config is not None else LogConfig()
+        super().__init__()
 
     @classmethod
     def from_webhook(cls, webhook_url: str) -> "SlackHandler":
-        return cls(
-            client=AsyncWebhookClient(webhook_url),
-        )
+        return cls(client=AsyncWebhookClient(webhook_url), config=LogConfig())
 
     @classmethod
     def dummy(cls) -> "SlackHandler":
-        return cls(client=DummyClient())
+        return cls(client=DummyClient(), config=LogConfig())
 
     async def send_text_via_webhook(self, text: str) -> str:
         response = await self.client.send(text=text)
-        assert response.status_code == 200
-        assert response.body == "ok"
+        if response.status_code != HTTPOk().status_code or response.body != "ok":
+            raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
 
     async def send_blocks_via_webhook(self, blocks: str) -> str:
         block_seq = Block.parse_all(json.loads(blocks))
         response = await self.client.send(blocks=block_seq)
-        assert response.status_code == 200
-        assert response.body == "ok"
+        if response.status_code != HTTPOk().status_code or response.body != "ok":
+            raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
 
     def emit(self, record: LogRecord) -> None:
@@ -381,6 +398,7 @@ class SlackHandler(logging.Handler):
                 asyncio.run(self.send_text_via_webhook(text=formatted_message))
 
         except Exception:
+            log.exception("Couldn't send message to webhook!")
             self.handleError(record)
 
     def handle(self, record: LogRecord) -> bool:
@@ -393,16 +411,16 @@ class SlackHandler(logging.Handler):
                 },
                 LogConfig,
             )
-            log.debug(f"handler config: {self.config}")
-            log.debug(f"formatter config: {self.formatter.config}")
-            log.debug(f"combined config: {combined_config}")
+            log.debug("handler config: %s", self.config)
+            log.debug("formatter config: %s", self.formatter.config)
+            log.debug("combined config: %s", combined_config)
             for sf in self.filters:
                 if isinstance(sf, SlackFilter):
                     res = True
                     if sf.config.use_regex is True:
-                        res = sf.regexFilterConfig(serviceConfig=combined_config, record=record)
+                        res = sf.regex_filter_config(service_config=combined_config)
                     else:
-                        res = sf.filterConfig(serviceConfig=combined_config, record=record)
+                        res = sf.filter_config(service_config=combined_config)
                     if res is False:
                         return False
 
