@@ -66,4 +66,3 @@ def plain_msg(log_msg: str) -> str:
 
 def text_msg(log_msg: str) -> str:
     return json.dumps({"text": log_msg})
-    return json.dumps({"text": log_msg})
