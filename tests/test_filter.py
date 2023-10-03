@@ -155,6 +155,83 @@ def test_allow_any_list_blocks_filter(caplog) -> None:  # type: ignore # noqa: A
     )
 
 
+def test_combined_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
+    """Test if combined filters in different orders works as expected"""
+    log_msg = "warning from combined_text_filter"
+
+    # We deny list logs from "test" environment
+    slack_filter11 = SlackFilter(
+        config=FilterConfig(context=["special"], extra_fields={"entry": "allow"}, filter_type=FilterType.AnyAllowList)
+    )
+    slack_filter12 = SlackFilter(
+        config=FilterConfig(
+            context=["oO", ".*special.*", ".*extra.*", ".*unique.*", ".*rare.*"],
+            filter_type=FilterType.AnyDenyList,
+            use_regex=True,
+        )
+    )
+    slack_filter13 = SlackFilter(
+        config=FilterConfig(context=["unique"], extra_fields={"entry": "allow"}, filter_type=FilterType.AnyAllowList)
+    )
+    slack_handler.addFilter(slack_filter11)
+    slack_handler.addFilter(slack_filter12)
+    slack_handler.addFilter(slack_filter13)
+
+    # Log without matching config
+    logger.warning(
+        "%s without matching field",
+        log_msg,
+        extra={"filter": {"service": "testrunner", "extra_fields": {"foo": "bar"}}},
+    )
+
+    # Log with matching field
+    logger.warning(
+        "%s with matching extra_field",
+        log_msg,
+        extra={"filter": {"service": "testrunner", "extra_fields": {"entry": "allow"}}},
+    )
+
+    logger.warning(
+        "%s with matching allow entry and special and deny",
+        log_msg,
+        extra={"filter": {"context": "special5", "extra_fields": {"entry": "allow"}}},
+    )
+    logger.warning(
+        "%s with matching special in allow and deny",
+        log_msg,
+        extra={"filter": {"context": "special5"}},
+    )
+    logger.warning(
+        "%s with matching extra in deny",
+        log_msg,
+        extra={"filter": {"context": "%extra"}},
+    )
+    logger.warning(
+        "%s with matching unique in deny and allow",
+        log_msg,
+        extra={"filter": {"context": "xyzuniqueabc"}},
+    )
+    logger.warning(
+        "%s with matching unique in deny and allow and allow extra",
+        log_msg,
+        extra={"filter": {"context": "xyzuniqueabc", "extra_fields": {"entry": "allow"}}},
+    )
+    logger.warning(
+        "%s with matching rare in deny",
+        log_msg,
+        extra={"filter": {"context": "rare"}},
+    )
+
+    assert text_msg(f"{log_msg} without matching field") not in caplog.messages
+    assert text_msg(f"{log_msg} with matching extra_field") in caplog.messages
+    assert text_msg(f"{log_msg} with matching allow entry and special and deny") in caplog.messages
+    assert text_msg(f"{log_msg} with matching special in allow and deny") not in caplog.messages
+    assert text_msg(f"{log_msg} with matching extra in deny") not in caplog.messages
+    assert text_msg(f"{log_msg} with matching unique in deny and allow") not in caplog.messages
+    assert text_msg(f"{log_msg} with matching unique in deny and allow and allow extra") in caplog.messages
+    assert text_msg(f"{log_msg} with matching rare in deny") not in caplog.messages
+
+
 def test_allow_all_list_regex_text_filter(caplog) -> None:  # type: ignore # noqa: ANN001
     """Test if allow list filters works if all provided field match"""
     log_msg = "warning from basic_text_filter"
