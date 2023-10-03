@@ -199,7 +199,11 @@ formatter = SlackFormatter.default(config)
 ### Filter Message
 
 Filters implement the logging interface of `Filters`.
+They are designed to work as a companion to a `LogFormatter`, as it can filter on the formatters config.
+A message is logged if a filter is matched successfully.
 Design goal (4) and (5) are partially demonstrated.
+
+Here is a quick example:
 
 ```python
 from slack_logger import FilterConfig, SlackFilter, SlackHandler
@@ -224,6 +228,24 @@ logger.warning(f"{log_msg} in dev environment and allow listed prod", extra={"fi
 logger.warning(f"{log_msg} in dev environment and allow listed prod", extra={"filter": {"environment": "prod"}})
 ```
 
+Note that we used the `"filter"` property in the `extra` field option here to inject a config, as we don't use a `SlackFormatter`.
+You can think of it as a reserved word.
+This `on-the-fly` configurations allow to specify properties on messages to alter the filter behavior for a single log message.
+
+There are 4 different types of filter lists:
+- `FilterType.AnyAllowList`: Pass filter if any of the provided conditions are met.
+- `FilterType.AllAllowList`: Pass filter only if all provided conditions are met.
+- `FilterType.AnyDenyList`: Pass filter if no condition is met and deny if any condition is met.
+- `FilterType.AllDenyList`: Pass filter if any condition is met and deny if all conditions are met.
+
+#### Combining multiple filters.
+
+It is important to note that as soon a message does not meet any filter condition, it is filtered out and won't appear in the logs, as it is simply the overlap of all filter conditions.
+Therefore it is not possible to allow a denied message afterwards.
+Furthermore, the order of filters do not matter.
+
+
 The composition of configurations, filters and dynamic extra fields allow for a flexible way of specifying your message content and filter unwanted messages.
 
 More examples can be found it the [tests folder](https://github.com/GRBurst/slack-logger-python/tree/main/tests).
+
