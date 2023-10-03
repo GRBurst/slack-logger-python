@@ -222,23 +222,23 @@ class SlackFilter(logging.Filter):
         super().__init__()
 
     @classmethod
-    def filter_by_fields(
+    def allow_by_fields(
         cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyAllowList
     ) -> "SlackFilter":
         return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=False))
 
     @classmethod
-    def filter_by_fields_regex(
+    def allow_by_fields_regex(
         cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyAllowList
     ) -> "SlackFilter":
         return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=True))
 
     @classmethod
-    def hide_by_fields(cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
+    def deny_by_fields(cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyDenyList) -> "SlackFilter":
         return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=False))
 
     @classmethod
-    def hide_by_fields_regex(
+    def deny_by_fields_regex(
         cls, fields: dict[str, str], filter_type: FilterType = FilterType.AnyDenyList
     ) -> "SlackFilter":
         return cls(FilterConfig(extra_fields=fields, filter_type=filter_type, use_regex=True))
