@@ -218,3 +218,4 @@ source = [
 generate-hashes = true
 strip_extras = true
 allow_unsafe = true
+output_file = "requirements.txt"
