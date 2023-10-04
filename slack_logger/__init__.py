@@ -8,8 +8,8 @@ from logging import LogRecord
 from typing import Any
 
 from aiohttp.web_exceptions import HTTPOk
-from attrs import Factory, asdict, define
-from cattrs import structure
+from attrs import Factory, asdict, define, field, validators
+from cattrs import Converter
 from slack_sdk.models.attachments import Attachment
 from slack_sdk.models.blocks import Block, ContextBlock, DividerBlock, HeaderBlock, SectionBlock
 from slack_sdk.models.blocks.basic_components import MarkdownTextObject, PlainTextObject
@@ -23,6 +23,11 @@ log.setLevel(logging.DEBUG)
 class SendError(Exception):
     def __init__(self, code: int, msg: str) -> None:
         super().__init__(f"Slack responds unsuccessful with code {code}: {msg}")
+
+
+class ContextError(TypeError):
+    def __init__(self, context: str) -> None:
+        super().__init__(f"Context must be a list, not a string: {context}")
 
 
 # Maps log levels to emojs
@@ -49,8 +54,19 @@ class FilterType(Enum):
 class LogConfig:
     service: str | None = None
     environment: str | None = None
-    context: list[str] = Factory(list)
-    extra_fields: dict[str, str] = Factory(dict)
+    context: list[str] = field(factory=list[str], validator=validators.instance_of(list))
+    extra_fields: dict[str, str] = Factory(dict[str, str])
+
+
+# https://github.com/python-attrs/cattrs/issues/44
+def structure_list_strict(v: list[str], _: type[list[str]]) -> list[str]:
+    if not isinstance(v, list):
+        raise ContextError(context=str(v))
+    return [str(e) for e in v]
+
+
+config_strict_context_converter = Converter()
+config_strict_context_converter.register_structure_hook_func(lambda t: t == list[str], structure_list_strict)
 
 
 @define
@@ -307,18 +323,12 @@ class SlackFilter(logging.Filter):
         return self.match_filter(res_list)
 
     def filter(self, record: LogRecord) -> bool:
-        log_filters = getattr(record, "filter", None)
-        if log_filters is None:
+        log_filter_raw = getattr(record, "filter", None)
+        if log_filter_raw is None:
             return True
 
-        extra_fields = log_filters.get("extra_fields", {})
-        log.debug("EXTRA FIELDS: %s", extra_fields)
-        rconfig: FilterConfig = FilterConfig(
-            service=log_filters.get("service", None),
-            environment=log_filters.get("environment", None),
-            context=log_filters.get("context", []),
-            extra_fields=log_filters.get("extra_fields", {}),
-        )
+        rconfig: FilterConfig = config_strict_context_converter.structure(log_filter_raw, FilterConfig)
+
         if self.config.use_regex is True:
             return self.regex_filter_config(service_config=rconfig)
 
@@ -404,7 +414,7 @@ class SlackHandler(logging.Handler):
     def handle(self, record: LogRecord) -> bool:
         # This pre-filters the messages with the Slack Filters
         if isinstance(self.formatter, SlackFormatter) and self.formatter.config is not None:
-            combined_config: LogConfig = structure(
+            combined_config: LogConfig = config_strict_context_converter.structure(
                 {
                     **asdict(self.formatter.config),
                     **{k: v for k, v in asdict(self.config).items() if v is not None},  # overwrite non None values
