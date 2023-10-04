@@ -174,7 +174,7 @@ DEFAULT_EMOJIS = {
 }
 ```
 
-You can import and overwrite it partially, or define a complete new set of emoji.
+You can import and overwrite it partially - or you can define a complete new set of emoji.
 The following example demonstrates how you can add the emoji set to the `SlackFormatter`:
 
 ```python
