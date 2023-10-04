@@ -191,44 +191,45 @@ def test_combined_list_text_filter(caplog) -> None:  # type: ignore # noqa: ANN0
         extra={"filter": {"service": "testrunner", "extra_fields": {"entry": "allow"}}},
     )
 
+    # Variations with at least on condition that denies the log
     logger.warning(
         "%s with matching allow entry and special and deny",
         log_msg,
-        extra={"filter": {"context": "special5", "extra_fields": {"entry": "allow"}}},
+        extra={"filter": {"context": ["special5"], "extra_fields": {"entry": "allow"}}},
     )
     logger.warning(
         "%s with matching special in allow and deny",
         log_msg,
-        extra={"filter": {"context": "special5"}},
+        extra={"filter": {"context": ["special5"]}},
     )
     logger.warning(
         "%s with matching extra in deny",
         log_msg,
-        extra={"filter": {"context": "%extra"}},
+        extra={"filter": {"context": ["%extra"]}},
     )
     logger.warning(
         "%s with matching unique in deny and allow",
         log_msg,
-        extra={"filter": {"context": "xyzuniqueabc"}},
+        extra={"filter": {"context": ["xyzuniqueabc"]}},
     )
     logger.warning(
         "%s with matching unique in deny and allow and allow extra",
         log_msg,
-        extra={"filter": {"context": "xyzuniqueabc", "extra_fields": {"entry": "allow"}}},
+        extra={"filter": {"context": ["xyzuniqueabc"], "extra_fields": {"entry": "allow"}}},
     )
     logger.warning(
         "%s with matching rare in deny",
         log_msg,
-        extra={"filter": {"context": "rare"}},
+        extra={"filter": {"context": ["rare"]}},
     )
 
     assert text_msg(f"{log_msg} without matching field") not in caplog.messages
     assert text_msg(f"{log_msg} with matching extra_field") in caplog.messages
-    assert text_msg(f"{log_msg} with matching allow entry and special and deny") in caplog.messages
+    assert text_msg(f"{log_msg} with matching allow entry and special and deny") not in caplog.messages
     assert text_msg(f"{log_msg} with matching special in allow and deny") not in caplog.messages
     assert text_msg(f"{log_msg} with matching extra in deny") not in caplog.messages
     assert text_msg(f"{log_msg} with matching unique in deny and allow") not in caplog.messages
-    assert text_msg(f"{log_msg} with matching unique in deny and allow and allow extra") in caplog.messages
+    assert text_msg(f"{log_msg} with matching unique in deny and allow and allow extra") not in caplog.messages
     assert text_msg(f"{log_msg} with matching rare in deny") not in caplog.messages
 
 
