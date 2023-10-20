@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -13,7 +12,7 @@ from cattrs import Converter
 from slack_sdk.models.attachments import Attachment
 from slack_sdk.models.blocks import Block, ContextBlock, DividerBlock, HeaderBlock, SectionBlock
 from slack_sdk.models.blocks.basic_components import MarkdownTextObject, PlainTextObject
-from slack_sdk.webhook.async_client import AsyncWebhookClient
+from slack_sdk.webhook.client import WebhookClient
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
 log = logging.getLogger("slack_logger")
@@ -336,10 +335,10 @@ class SlackFilter(logging.Filter):
 
 
 @define
-class DummyClient(AsyncWebhookClient):
+class DummyClient(WebhookClient):
     url: str = ""
 
-    async def send(  # noqa: PLR0913 (allow many arguments here)
+    def send(  # noqa: PLR0913 (allow many arguments here)
         self,
         *,
         text: str | None = None,
@@ -370,31 +369,31 @@ class DummyClient(AsyncWebhookClient):
 
 
 class SlackHandler(logging.Handler):
-    client: AsyncWebhookClient
+    client: WebhookClient
     config: LogConfig
 
-    def __init__(self, client: AsyncWebhookClient, config: LogConfig | None) -> None:
+    def __init__(self, client: WebhookClient, config: LogConfig | None) -> None:
         self.client = client
         self.config = config if config is not None else LogConfig()
         super().__init__()
 
     @classmethod
     def from_webhook(cls, webhook_url: str) -> "SlackHandler":
-        return cls(client=AsyncWebhookClient(webhook_url), config=LogConfig())
+        return cls(client=WebhookClient(webhook_url), config=LogConfig())
 
     @classmethod
     def dummy(cls) -> "SlackHandler":
         return cls(client=DummyClient(), config=LogConfig())
 
-    async def send_text_via_webhook(self, text: str) -> str:
-        response = await self.client.send(text=text)
+    def send_text_via_webhook(self, text: str) -> str:
+        response = self.client.send(text=text)
         if response.status_code != HTTPOk().status_code or response.body != "ok":
             raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
 
-    async def send_blocks_via_webhook(self, blocks: str) -> str:
+    def send_blocks_via_webhook(self, blocks: str) -> str:
         block_seq = Block.parse_all(json.loads(blocks))
-        response = await self.client.send(blocks=block_seq)
+        response = self.client.send(blocks=block_seq)
         if response.status_code != HTTPOk().status_code or response.body != "ok":
             raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
@@ -403,9 +402,9 @@ class SlackHandler(logging.Handler):
         try:
             formatted_message = self.format(record)
             if isinstance(self.formatter, SlackFormatter):
-                asyncio.run(self.send_blocks_via_webhook(blocks=formatted_message))
+                self.send_blocks_via_webhook(blocks=formatted_message)
             else:
-                asyncio.run(self.send_text_via_webhook(text=formatted_message))
+                self.send_text_via_webhook(text=formatted_message)
 
         except Exception:
             log.exception("Couldn't send message to webhook!")
