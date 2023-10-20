@@ -124,7 +124,7 @@ ignore = [
   "ANN102",   # skip type annotation for `cls` in method
 ]
 
-format = "grouped"
+output-format = "grouped"
 show-fixes = true
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
