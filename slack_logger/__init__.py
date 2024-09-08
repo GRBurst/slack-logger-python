@@ -6,7 +6,6 @@ from enum import Enum
 from logging import LogRecord
 from typing import Any
 
-from aiohttp.web_exceptions import HTTPOk
 from attrs import Factory, asdict, define, field, validators
 from cattrs import Converter
 from slack_sdk.models.attachments import Attachment
@@ -17,6 +16,8 @@ from slack_sdk.webhook.webhook_response import WebhookResponse
 
 log = logging.getLogger("slack_logger")
 log.setLevel(logging.DEBUG)
+
+HTTPOk = 200
 
 
 class SendError(Exception):
@@ -387,14 +388,14 @@ class SlackHandler(logging.Handler):
 
     def send_text_via_webhook(self, text: str) -> str:
         response = self.client.send(text=text)
-        if response.status_code != HTTPOk().status_code or response.body != "ok":
+        if response.status_code != HTTPOk or response.body != "ok":
             raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
 
     def send_blocks_via_webhook(self, blocks: str) -> str:
         block_seq = Block.parse_all(json.loads(blocks))
         response = self.client.send(blocks=block_seq)
-        if response.status_code != HTTPOk().status_code or response.body != "ok":
+        if response.status_code != HTTPOk or response.body != "ok":
             raise SendError(code=response.status_code, msg=response.body)
         return str(response.body)
 
