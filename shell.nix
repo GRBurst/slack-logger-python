@@ -1,5 +1,5 @@
+{ pkgs }:
 let
-  pkgs = import <nixpkgs> { };
   pname = "slack-logger-python";
   vsextensions = (with pkgs.vscode-extensions; [
     ms-azuretools.vscode-docker
@@ -18,16 +18,16 @@ let
       sha256 = "sha256-lv4dUJDOFPemvS8YTD12/PjeTevWhR76Ex8qHjQH3vY=";
     }
     {
-          publisher = "ms-python";
-          name = "black-formatter";
-          version = "2023.5.11841009";
-          sha256 = "sha256-zmEDAdj/7ZyzXzh+iPes6LMIA7+63wZZB2ZD65kKp8I=";
+      publisher = "ms-python";
+      name = "black-formatter";
+      version = "2023.5.11841009";
+      sha256 = "sha256-zmEDAdj/7ZyzXzh+iPes6LMIA7+63wZZB2ZD65kKp8I=";
     }
     {
-          publisher = "ms-python";
-          name = "isort";
-          version = "2023.9.11781018";
-          sha256 = "sha256-ev+gSQP+Q1AEw+r1Uahi1TI+docalcC1iWO29N1L5VE=";
+      publisher = "ms-python";
+      name = "isort";
+      version = "2023.9.11781018";
+      sha256 = "sha256-ev+gSQP+Q1AEw+r1Uahi1TI+docalcC1iWO29N1L5VE=";
     }
   ]; 
   vscode-slack-logger = pkgs.vscode-with-extensions.override {
@@ -42,8 +42,9 @@ let
 in
 
 pkgs.mkShell {
-  packages = [ plugin-python ];
-  buildInputs = with pkgs; [
+  packages = with pkgs; [
+    plugin-python
+
     git
 
     black
@@ -53,4 +54,7 @@ pkgs.mkShell {
 
     vscode-slack-logger
   ];
+  shellHook = ''
+    echo "Welcome to the ${pname} project"
+  '';
 }
